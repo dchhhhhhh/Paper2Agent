@@ -63,7 +63,7 @@ python -X utf8 -m unittest discover -s tests -v
 ```powershell
 python run_experiment.py generate --card examples/itransformer_traffic/task.json --config examples/itransformer_traffic/cpu_first_run.json --run runs/my_traffic96
 python run_experiment.py train --card examples/itransformer_traffic/task.json --run runs/my_traffic96
-python verify_run.py --out runs/my_traffic96/fit --report runs/my_traffic96/verification.json
+python verify_run.py --out runs/my_traffic96/fit --card examples/itransformer_traffic/task.json --report runs/my_traffic96/verification.json
 ```
 
 准备生成环境需要已登录的 `codex` CLI 和 `pypdf`，训练与复核使用项目的 Python 依赖。两类依赖位于同一解释器时可用 `run_experiment.py all` 一次接通生成与运行。复用已生成模型时，可直接用 `experiment_runner.py --card ... --model ... --config ... --out 新目录` 从头训练。模型默认服务的账单金额取决于订阅或提供商，CLI 用量和实际可获得的金额分字段记录。

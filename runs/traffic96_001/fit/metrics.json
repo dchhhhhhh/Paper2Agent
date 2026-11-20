@@ -1,0 +1,24 @@
+{
+  "sse": 137847971.7082347,
+  "elements": 282432576,
+  "windows": 3413,
+  "mse": 0.48807391010105966,
+  "test_mse": 0.48807391010105966,
+  "split": "test",
+  "scale": "per-variable training StandardScaler",
+  "best_epoch": 10,
+  "best_validation_mse": 0.4369258275504859,
+  "epochs_completed": 10,
+  "forecast_shape": [
+    3413,
+    96,
+    862
+  ],
+  "predictions": "predictions.npy",
+  "truth_series": "test_truth_series.npy",
+  "truth_index": "truth_series[window + horizon_offset, variable]",
+  "checkpoint": "best.pt",
+  "checkpoint_sha256": "86d5e62a1a61b792afdc3c476a7864080d75be8807310ea140df65bda1651fe5",
+  "model_sha256": "314eeaac68e789bd65b2344036f22153df36798c8340832940c50ea2708dff4a",
+  "task_id": "reproducebench-itransformer-traffic-96"
+}

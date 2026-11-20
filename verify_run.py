@@ -27,6 +27,70 @@ def match_score(actual, expected, name):
             f"{name} differs: {actual} vs {expected}")
 
 
+def file_digest(file):
+    with file.open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def audit_raw_truth(card_path, truth, metrics, start):
+    """Read original measurements and fit an independent copy of the training-only scaler."""
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+
+    card = json.loads(card_path.read_text(encoding="utf-8-sig"))
+    require(file_digest(card_path) == start["card_sha256"], "Supplied card differs from the training card.")
+    require(card["task_id"] == metrics["task_id"], "Task identifiers differ.")
+    csv_path = card_path.parent / card["data_path"]
+    digest = file_digest(csv_path)
+    require(digest == start["data_sha256"] == TRAFFIC_SHA256, "Actual CSV digest differs from training.")
+    frame = pd.read_csv(csv_path)
+    require(frame.shape == (ROWS, CHANNELS + 1), "Raw CSV size differs from expected Traffic source.")
+    frame.pop("date")
+    # The author's Dataset_Custom puts its named target column last before scaling.
+    target_column = frame.pop("OT")
+    frame["OT"] = target_column
+    train_end = int(len(frame) * 0.7)
+    test_rows = int(len(frame) * 0.2)
+    train_values = frame.iloc[:train_end].to_numpy(dtype=np.float64)
+    scaler = StandardScaler().fit(train_values)
+    del train_values
+    test_values = frame.iloc[-test_rows:].to_numpy(dtype=np.float64)
+    expected = scaler.transform(test_values).astype(np.float32)
+    require(expected.shape == truth.shape, "Compact truth dimensions differ from raw evaluation rows.")
+    require(np.isfinite(expected).all() and np.isfinite(truth).all(), "Nonfinite stored/reconstructed truth.")
+    equal = np.array_equal(truth, expected)
+    max_abs = float(np.abs(expected - truth).max())
+    require(equal or np.allclose(truth, expected, rtol=2e-7, atol=2e-7),
+            f"Saved truth does not reproduce standardized raw CSV (max abs diff {max_abs}).")
+    return {
+        "csv_sha256": digest, "card_sha256": start["card_sha256"],
+        "standardizer_fit_rows": train_end, "test_rows_reconstructed": test_rows,
+        "truth_elements_checked": expected.size, "truth_elementwise_exact": bool(equal),
+        "truth_max_abs_difference": max_abs, "truth_rtol": 2e-7, "truth_atol": 2e-7,
+    }
+
+
+def audit_generation(out, metrics):
+    """Link the fitted model bytes to an actual successful call's saved JSON reply."""
+    run = out.parent
+    model_path, calls = run / "model.py", run / "calls"
+    if out.name != "fit" and not (model_path.exists() or calls.exists()):
+        return {"status": "generation_artifacts_not_present_in_standalone_directory"}
+    digest = file_digest(model_path)
+    require(digest == metrics["model_sha256"], "Generated model.py digest differs from training.")
+    model_text = model_path.read_text(encoding="utf-8")
+    for record_path in sorted(calls.glob("generation-*/call.json")):
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        if record.get("stage") != "generation" or record.get("status") != "completed":
+            continue
+        answer = record_path.with_name("response.txt")
+        generated = json.loads(answer.read_text(encoding="utf-8"))["python"]
+        if generated.strip() + "\n" == model_text:
+            return {"status": "verified", "model_sha256": digest, "response_sha256": file_digest(answer),
+                    "generation_call_id": record["attempt_id"], "response_file": answer.relative_to(run).as_posix()}
+    raise ValueError("No completed model call's saved response matches model.py.")
+
+
 def audit_training(out, metrics):
     with (out / "training.jsonl").open(encoding="utf-8") as stream:
         events = [json.loads(line) for line in stream]
@@ -85,12 +149,12 @@ def audit_training(out, metrics):
         "epochs_checked": len(epochs), "best_epoch": best_epoch, "best_validation_mse": best_val,
         "train_windows_per_epoch": train_windows, "validation_windows_per_epoch": val_windows,
         "test_windows": test_windows, "checkpoint_sha256": digest,
-    }, complete
+    }, complete, start
 
 
-def audit(out):
+def audit(out, card=None):
     metrics = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
-    training, final_event = audit_training(out, metrics)
+    training, final_event, start = audit_training(out, metrics)
     require(metrics["predictions"] == "predictions.npy" and metrics["truth_series"] == "test_truth_series.npy",
             "Unexpected evaluation artifact paths.")
     require(metrics["truth_index"] == "truth_series[window + horizon_offset, variable]",
@@ -102,6 +166,10 @@ def audit(out):
     require(forecasts.shape == tuple(metrics["forecast_shape"]) == shape, "Incomplete forecast array.")
     require(truth.shape == (windows + 95, CHANNELS), "Compressed ground-truth series has wrong dimensions.")
     require(forecasts.dtype == truth.dtype == np.float32, "Expected float32 evaluation artifacts.")
+    sources = {}
+    if card is not None:
+        sources["raw_data_verification"] = audit_raw_truth(card, truth, metrics, start)
+        sources["generation_verification"] = audit_generation(out, metrics)
     # Rebuild each horizon by its offset in the compact ground-truth series.
     offsets = np.arange(96)[None, :]
     sse_chunks = []
@@ -119,7 +187,7 @@ def audit(out):
     match_score(sse, final_event["test_sse"], "Recomputed/logged test SSE")
     for recorded in (metrics["mse"], metrics["test_mse"], final_event["test_mse"]):
         match_score(mse, recorded, "Recomputed test MSE")
-    return {"status": "verified", "task_id": metrics["task_id"], **training, "test_shape": list(shape),
+    return {"status": "verified", "task_id": metrics["task_id"], **training, **sources, "test_shape": list(shape),
             "test_sse": sse, "test_elements": count, "test_mse": mse, "scale": metrics["scale"],
             "reported_mse": metrics["test_mse"], "absolute_mse_difference": abs(mse - metrics["test_mse"])}
 
@@ -128,11 +196,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="Completed training output directory")
     parser.add_argument("--report", required=True, type=Path, help="New audit report path")
+    parser.add_argument("--card", type=Path, help="Original task card; also verify raw CSV truths and generation provenance")
     args = parser.parse_args()
     try:
         with args.report.open("x", encoding="utf-8") as report:
             try:
-                outcome = audit(args.out)
+                outcome = audit(args.out, args.card)
             except (OSError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
                 outcome = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
             text = json.dumps(outcome, ensure_ascii=False, indent=2, allow_nan=False)
