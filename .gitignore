@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 # The complete Traffic CSV is distributed by the authors (136 MB).
 /examples/itransformer_traffic/materials/traffic.csv
+# Bulk artifacts remain available locally beside the tracked metrics and audit.
+/runs/*/fit/predictions*.npy
+/runs/*/fit/test_truth_series.npy
+/runs/*/calls/*/stderr.log

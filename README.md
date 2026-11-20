@@ -55,3 +55,17 @@ python -X utf8 -m unittest discover -s tests -v
 3. **给定缺文件的任务，运行同一入口。** 自动测试使用临时任务卡指向不存在的数据文件，检查程序在 `input_check` 阶段点名 `data_path`。测试还覆盖旧版任务卡的空路径，以及把预测长度改为 192 的情形。
 
 本次实测使用完整 CSV。训练段共有 12,089 个可用窗口，本次读取其中一个批次。可直接查看[真实训练批次记录](evidence/first_train_batch.json)和[缺数据记录](evidence/missing_data.json)，也可在队友的环境重新运行上面的命令核对。
+
+## 第二步　论文分析、生成和实际训练
+
+从本目录执行下列命令。第一条通过已登录的 Codex CLI 发送任务规格与公开论文选页，保存模型生成的实验规格，再据此生成可独立导入的 PyTorch 模型模块。第二条使用本机 PyTorch 执行训练，第三条从预测和按时间索引保存的真值独立重算 MSE。新实验使用新的运行目录，便于保留每次生成和训练记录。
+
+```powershell
+python run_experiment.py generate --card examples/itransformer_traffic/task.json --config examples/itransformer_traffic/cpu_first_run.json --run runs/my_traffic96
+python run_experiment.py train --card examples/itransformer_traffic/task.json --run runs/my_traffic96
+python verify_run.py --out runs/my_traffic96/fit --report runs/my_traffic96/verification.json
+```
+
+准备生成环境需要已登录的 `codex` CLI 和 `pypdf`，训练与复核使用项目的 Python 依赖。两类依赖位于同一解释器时可用 `run_experiment.py all` 一次接通生成与运行。复用已生成模型时，可直接用 `experiment_runner.py --card ... --model ... --config ... --out 新目录` 从头训练。模型默认服务的账单金额取决于订阅或提供商，CLI 用量和实际可获得的金额分字段记录。
+
+本次选择 CPU 首轮配置。模型宽度 32、两层两头、前馈宽度 64，使用 Adam 和均方误差训练 10 轮。每轮覆盖所有训练窗口，每个窗口随机抽取 172 个变量。每轮验证均用全部变量，按验证 MSE 选取检查点，冻结后在全部测试窗口及 862 个变量上计算标准化尺度的 MSE。固定种子、全部配置、生成源码、检查点和日志均保存在同一运行目录。
