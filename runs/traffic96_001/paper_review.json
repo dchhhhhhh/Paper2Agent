@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "stage": "paper_understanding",
+  "analysis_language": "zh-CN",
+  "source": {
+    "title": "iTransformer: Inverted Transformers Are Effective for Time Series Forecasting",
+    "paper_version": "arXiv:2310.06625v4 (ICLR 2024)",
+    "page_numbering": "本地 PDF 的一基页码，共 25 页",
+    "paper_file": "examples/itransformer_traffic/materials/paper.pdf",
+    "paper_sha256": "83e889795af52c672090255493266e3ea93e7b2a32c528f58074f2f9f757ffc5",
+    "task_card": "examples/itransformer_traffic/task.json",
+    "task_sha256": "6ecdc56f40c9ad0a37f3bc51d70e36f70cc359df99c7aa4d51dfae34bdfa35e9",
+    "evidence_read": ["本地论文 PDF，按页提取", "现有任务卡", "任务提供的数据加载代码 data_provider/data_factory.py 和 data_provider/data_loader.py"]
+  },
+  "experiment": {
+    "dataset": "Traffic",
+    "method": "iTransformer, encoder-only, multivariate forecasting",
+    "channels": 862,
+    "lookback_len": 96,
+    "label_len": 48,
+    "prediction_len": 96,
+    "frequency": "hourly",
+    "sensor_quantity": "旧金山湾区高速公路传感器的路面占用率",
+    "target": "同时预测未来 96 个小时全部 862 个变量",
+    "primary_metric": "测试集上标准化预测和对应真值之差的逐元素均方误差",
+    "sources": ["PDF 第 13 页附录 A.1，时间顺序划分和数据来源", "PDF 第 14 页表 4，变量数、频率、预测长度", "任务卡 experiment 和 split_usage", "数据加载器 Dataset_Custom"]
+  },
+  "model_requirements": [
+    {"criterion": "对每个变量的 96 个历史值独立应用共享的时间投影，得到一个变量 token。", "shapes": "[B,96,N] -> [B,N,96] -> [B,N,D]", "source": "PDF 第 4 页图 4、式 (1)，第 13 页算法 1 第 1–3 行"},
+    {"criterion": "令 N 个变量 token 之间进行多头自注意力，相关性矩阵的两条轴均为变量。", "shapes": "per-head attention weights [B,N,N]", "source": "PDF 第 4 页图 4、第 5 页 §3.2 Self-attention"},
+    {"criterion": "每个编码块先做注意力、残差、按特征维 LayerNorm，然后对各变量采用同一 FFN，再作残差和 LayerNorm。", "shapes": "[B,N,D] -> [B,N,D]", "source": "PDF 第 5 页式 (2) 和第 13 页附录 A.2 算法 1 第 4–10 行"},
+    {"criterion": "逐变量用共享的预测投影将 D 维表示映射为 96 个未来值，再转回时间在前的布局。", "shapes": "[B,N,D] -> [B,N,96] -> [B,96,N]", "source": "PDF 第 4 页式 (1)，第 13 页算法 1 第 11–13 行"},
+    {"criterion": "原始窗口的各变量可以按自己过去时间点的均值与标准差作归一化，如使用此操作，输出还原到加载器的标准化坐标再计算指标。它与块内按表示维的 LayerNorm 和整训练段拟合的数据标准化分别记录。", "source": "PDF 第 4 页图 4(a)、第 5 页式 (2)；加载器 Dataset_Custom.__read_data__"}
+  ],
+  "window_and_evaluation": {
+    "history_shape": "[B,96,862]",
+    "loader_label_shape": "[B,144,862]",
+    "supervised_targets": "y[:, -96:, :]。y 的前 48 步是与输入末尾重叠的观测。算法 1 的预测输入只需历史 x。",
+    "chronological_split": "Dataset_Custom 取 floor(0.7 × 总时间点) 为训练，floor(0.2 × 总时间点) 为测试，其余为验证。验证和测试各允许取前一分段的 96 步历史上下文；未来真值严格位于当前分段。",
+    "standardization": "每个变量的 StandardScaler 只拟合训练时间段；各分段用同一尺度。测试预测文件和 MSE 均应声明尺度。",
+    "checkpoint_selection": "只允许按验证集表现选检查点。设置冻结后运行测试，并按所有实际测试元素的平方误差和除以元素数，避免尾批大小影响均值。",
+    "loader_note": "作者的 data_provider 对 val 也 shuffle 且 drop_last。若目标是计算完整验证集，保留返回的 Dataset 并用顺序采样、drop_last=False 重新包装；应在运行配置记录这一选择。"
+  },
+  "paper_training_settings": {
+    "source": "PDF 第 14 页附录 A.2、表 5 前的训练设置说明",
+    "optimizer": "Adam",
+    "loss": "L2",
+    "batch_size": 32,
+    "epochs": 10,
+    "learning_rate_candidates": [0.001, 0.0005, 0.0001],
+    "block_count_candidates": [2, 3, 4],
+    "model_dimension_candidates": [256, 512],
+    "reported_hardware": "single NVIDIA P100 16GB",
+    "seed_protocol": "表 5 的稳定性分析为五个不同随机种子。本任务要求一次运行，需记录实际种子。"
+  },
+  "variate_sampling": {
+    "permitted_by_paper": true,
+    "training": "在每个训练批次无放回随机选部分变量；输入和训练真值使用同一批变量索引。不得按测试指标挑变量。",
+    "inference": "用全集变量同时推理，862 个变量共同参与注意力并全部进入指标统计。",
+    "source": "PDF 第 9 页 Efficient training strategy 和图 8；第 17 页附录 D 明说可用 20% 变量训练、全部变量预测；第 4 页 §3.1 允许训练和推理时 token 数不同。",
+    "limitation": "采样是论文单独研究的效率变体，具体采样比、取整及实现要写入 run 配置。远低于 20% 的采样率、低于文中候选的宽度或层数、以及少于 10 轮训练属于本机预算选择；其单次结果不能作为论文主表同配置复测。"
+  },
+  "settings_to_declare_before_test": [
+    "正文给出宽度、深度和学习率候选集合，未在上述训练说明逐一指定 Traffic-96 的唯一组合；记录本次取值及其依据。",
+    "如采用变体，明确训练变量采样量和采样种子、验证及测试实际评价的变量数量。",
+    "声明注意力头数、FFN 宽度、激活与 dropout、每窗归一化选项、时间特征使用方式、学习率调度、每轮训练窗口数和验证频率。",
+    "声明验证集选择准则、实际运行轮数、输出预测与真值的坐标尺度、软件设备环境。"
+  ]
+}

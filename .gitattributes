@@ -1,0 +1,7 @@
+# These files are inputs to the recorded SHA-256 checks. Preserve their exact bytes.
+/examples/itransformer_traffic/task.json -text
+/examples/itransformer_traffic/cpu_first_run.json -text
+/examples/itransformer_traffic/materials/itransformer_loader/**/*.py -text
+/runs/**/model.py -text
+/runs/**/paper_spec.json -text
+/runs/**/config.json -text
