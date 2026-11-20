@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# The complete Traffic CSV is distributed by the authors (136 MB).
+/examples/itransformer_traffic/materials/traffic.csv

@@ -1,0 +1,28 @@
+{
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "benchmark": "ReproduceBench",
+  "paper": {
+    "title": "iTransformer: Inverted Transformers Are Effective for Time Series Forecasting",
+    "arxiv_id": "2310.06625",
+    "paper_url": "https://arxiv.org/abs/2310.06625v4"
+  },
+  "paper_path": "materials/paper.pdf",
+  "data_path": "materials/traffic.csv",
+  "dataloader_path": "materials/itransformer_loader/data_provider/data_factory.py",
+  "dataloader_entrypoint": "data_provider",
+  "experiment": {
+    "method": "iTransformer",
+    "dataset": "Traffic",
+    "objective": "根据过去 96 步的多变量序列预测未来 96 步。",
+    "lookback_len": 96,
+    "label_len": 48,
+    "pred_len": 96,
+    "metric": "MSE",
+    "evaluation_split": "test"
+  },
+  "split_usage": {
+    "train": "用于训练及本阶段的批次检查。",
+    "validation": "用于开发验证和选择检查点。",
+    "test": "冻结实现和配置后用于最终评测。"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "stage": "train_batch_check",
+  "model_calls": 0,
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "status": "train_batch_checked",
+  "batch": {
+    "split": "train",
+    "sample_seed": 0,
+    "train_windows": 12089,
+    "axes": [
+      "batch",
+      "time",
+      "variable"
+    ],
+    "input_shape": [
+      2,
+      96,
+      862
+    ],
+    "label_shape": [
+      2,
+      144,
+      862
+    ],
+    "forecast_target_shape": [
+      2,
+      96,
+      862
+    ],
+    "input_time_features_shape": [
+      2,
+      96,
+      4
+    ],
+    "label_time_features_shape": [
+      2,
+      144,
+      4
+    ],
+    "finite": true,
+    "history_overlap_steps": 48,
+    "history_values_and_times_match": true
+  }
+}
