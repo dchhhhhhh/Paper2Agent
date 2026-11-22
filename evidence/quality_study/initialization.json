@@ -1,0 +1,19 @@
+{
+  "model_sha256": [
+    "c9b2f010569ad8b429e43b22d069efdf6851a8d6cb1ce99671339a79e60ca264",
+    "f5d2560ef3ab04d6bb2705cf3f1d4950fc7b89b32b025a357c87ffde55df673d"
+  ],
+  "parameter_counts": [
+    23360,
+    23360
+  ],
+  "weight_seed": 2026,
+  "all_parameter_tensors_equal_in_registration_order": true,
+  "input_seed": 7435,
+  "input_shape": [
+    3,
+    96,
+    11
+  ],
+  "max_forecast_difference": 5.960464477539062e-07
+}

@@ -83,4 +83,4 @@ python run_experiment.py check --card examples/itransformer_traffic/task.json --
 python run_experiment.py repair --card examples/itransformer_traffic/task.json --run runs/my_traffic96
 ```
 
-用 `--protocol baseline` 新建原流程对照。执行 `python compare_method_checks.py` 可重跑已知样例。独立生成对照、匿名评审规则及训练对象的选择见[实验方案](evidence/quality_study/PROTOCOL.md)。
+用 `--protocol baseline` 新建原流程对照。执行 `python compare_method_checks.py` 可重跑已知样例。独立生成对照、匿名评审规则及训练对象的选择见[实验方案](evidence/quality_study/PROTOCOL.md)，实际得分、修复案例及局限见[实验报告](evidence/quality_study/RESULT.md)。

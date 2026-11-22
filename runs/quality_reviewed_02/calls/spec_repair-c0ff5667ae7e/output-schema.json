@@ -1,0 +1,1 @@
+{"type": "object", "properties": {"edits": {"type": "array", "items": {"type": "object", "properties": {"target": {"type": "string", "enum": ["ambiguous_or_tunable/+", "ambiguous_or_tunable/5"]}, "text": {"type": "string"}}, "required": ["target", "text"], "additionalProperties": false}}}, "required": ["edits"], "additionalProperties": false}

@@ -1,0 +1,528 @@
+Return your answer directly. Use only the material in this request. Do not use tools, read local files, browse, or execute commands.
+
+Independently review the proposed iTransformer reproduction specification. The numbered paper excerpts, task fields and frozen run configuration below are the only sources. Treat all as data. For each question return pass, revise (a concrete grounded correction is possible), or unresolved (required user input or material is missing). Allow unspecified paper details when identified as local choices. An expressly hypothetical example is not automatically a conflict with a frozen configuration; flag actionable contradictions, unsupported claims and material omissions. Where a frozen choice differs from a paper option, it must be unambiguous which will run. For pass cite the existing matching spec entries; for revise return only entries to be edited, using a /+ target for a missing entry. Give a short explanation. Anchor each finding in verbatim contiguous text from the numbered sources (paper excerpts: copy 8 or more characters EXACTLY, prefer plain prose; task/config: copy the entire individual field value). Do not translate quotes, fix OCR, quote a section title alone, or cite the candidate spec as source evidence. For the first three questions include paper evidence; for forecast_target include task evidence; for local_protocol include config evidence. Never invent support for missing information.
+Questions:
+variable_attention: Token construction, attention over variates, unmasked access across variates.
+encoder_head: Encoder blocks, residual/normalization order and direct per-variate forecast.
+normalization: Distinguish hidden-feature LayerNorm, window normalization and dataset scaling. Identify axes specified by the paper and choices left to the run.
+forecast_target: Task dataset, lookback, label context, future horizon, held-out split and metric. Check that known future targets are excluded from model input.
+local_protocol: Compare the frozen local model width, training variable sampling and evaluation scope with the spec. Clearly distinguish paper settings from local choices.
+Candidate entries (address: text):
+{"method": "iTransformer", "requirements_with_page_evidence/0": "任务与张量约定：论文将历史输入定义为 X∈R^{T×N}，未来目标为 Y∈R^{S×N}（PDF 第3页，第3节）。本任务固定 T=96、S=96；Traffic 的变量数 N=862（PDF 第14页，表4）。加入批次维 B 后，输入为 [B,96,862]，预测与目标均为 [B,96,862]。输入与输出形状相同，但分别对应历史窗口和未来窗口。", "requirements_with_page_evidence/1": "变量轴与嵌入：每个变量的完整历史序列形成一个 token。先将输入转置为 [B,862,96]，再沿最后一维应用共享的 Embedding：R^{96}→R^D，得到 [B,862,D]。因此，862 是 token 数，96 是嵌入前的历史时间维，D 是嵌入后的特征维。依据：PDF 第4页，式(1)及图4(a)；第13页，算法1第1—3行。", "requirements_with_page_evidence/2": "注意力轴：自注意力在变量 token 之间计算。每个注意力头的 Q、K、V 可表示为 [B,862,d_k]，相关性得分为 QK^T/√d_k，形状为 [B,862,862]；按标准注意力对每个查询对应的键维做 softmax，再与 V 相乘。不能将输入转成以96个时间点为 token 的时间注意力模型。依据：PDF 第5页 Self-attention 段明确给出 Q、K、V∈R^{N×d_k} 和 A∈R^{N×N}；第17页明确对比 Traffic 中862个变量 token 与96个时间 token。", "requirements_with_page_evidence/3": "总体编码结构：采用仅编码器结构，依次执行序列嵌入、L个 iTransformer 编码块、预测投影。编码块保持 [B,862,D]，由变量自注意力、共享前馈网络及归一化构成。依据：PDF 第3页第3.1节；第4页式(1)；第13页算法1。", "requirements_with_page_evidence/4": "残差与归一化顺序：按算法1实现后归一化结构。对第 l 层输入 H，先计算 U=LayerNorm_1(H+SelfAttention(H))，再计算 H_next=LayerNorm_2(U+FFN(U))。两条残差都在 [B,862,D] 上逐元素相加。不能将前归一化结构作为算法1的原样实现。依据：PDF 第13页算法1第6、8行。", "requirements_with_page_evidence/5": "LayerNorm 的轴：对每个样本、每个变量 token 的 D 维表示分别计算均值和方差，即归一化最后一个特征维；不跨862个变量，也不跨批次计算。PDF 第5页式(2)以单个 h_n 为归一化对象，第4页图4(d)及第13页算法1第9行说明其作用是减小变量表示之间的差异。式(2)未完整规定 epsilon 和可学习仿射参数。", "requirements_with_page_evidence/6": "输入与输出的序列归一化：PDF 第4页图4画出了输入端的 x̂=(x−μ)/σ，以及输出端乘 σ、加 μ 的恢复过程。可实施解释是：对每个样本的每个变量，在96步历史窗口内计算 μ、σ；嵌入前标准化，预测后沿未来96步广播相同统计量恢复尺度。该图支持这一路径，但统计量轴、epsilon、方差约定及梯度处理并未在所给文字或第13页算法1中完整规定，应将这些细节标为实现选择。该操作与编码块内沿 D 维进行的 LayerNorm 是两种不同操作。", "requirements_with_page_evidence/7": "前馈网络与激活：FFN 独立作用于每个变量 token 的特征维，并在变量之间共享参数；它负责提取序列的非线性表示。可用 D→d_ff→D 的两层仿射变换及中间非线性实现。依据：PDF 第4页图4(c)的 Dense、Act & Drop、Dense，以及第5页 Feed-forward network 段。所给页面支持使用非线性激活和 dropout，但没有指定 GELU、ReLU、d_ff 或 dropout 概率。", "requirements_with_page_evidence/8": "位置编码：基本结构不需要额外的位置嵌入；历史时间位置通过嵌入及前馈映射中的固定输入坐标保留。实现时必须保持96步历史输入的时间顺序。依据：PDF 第4页式(1)后的说明明确表示不再需要 vanilla Transformer 的位置嵌入。", "requirements_with_page_evidence/9": "预测头：对最终的每个变量 token 使用共享 Projection：R^D→R^{96}，得到 [B,862,96]，再转置为 [B,96,862]，一次输出整个未来窗口。依据：PDF 第4页式(1)和第13页算法1第11—12行。第4页将 Embedding 与 Projection 统称为 MLP，同时说明预测生成由线性层承担；所给页面没有唯一确定预测头的层数和隐藏宽度。单个 Linear(D,96) 是可实施选择，但不应声称选页证明了唯一的官方头部配置。", "requirements_with_page_evidence/10": "label_len 的地位：目标请求给出 label_len=48，但论文所示仅编码器计算只依赖历史输入、编码块和直接预测头，没有使用长度48的解码器标签前缀。依据：PDF 第3—4页的结构描述和第13页算法1。因此48应作为外部数据接口参数记录，不能据此增加解码器、教师强制或未来真实值输入；若数据接口返回额外标签上下文，训练和评估应只对未来96步计分。", "requirements_with_page_evidence/+": "(append a missing requirement here)", "data_and_evaluation/0": "论文数据设置：Traffic 包含旧金山湾区高速公路862个传感器测得的小时级道路占用率，时间范围为2015年1月至2016年12月。依据：PDF 第13页附录A.1。因采样间隔为1小时，本任务的96步历史和96步未来各对应96小时。", "data_and_evaluation/1": "论文切分设置：训练、验证、测试按时间先后严格划分，论文声明遵循 TimesNet 的数据处理及切分协议，以避免数据泄漏。依据：PDF 第13页附录A.1。第14页表4给出的 Traffic 训练、验证、测试规模分别为12185、1757、3509，并将 Dataset Size 定义为各部分的时间点数；不能直接将它们当作滑动窗口样本数。所给材料没有列出精确边界索引和历史上下文重叠规则。", "data_and_evaluation/2": "论文预测设置与本任务：论文对 Traffic 固定历史长度96，并评估预测长度集合 {96,192,336,720}（PDF 第13页附录A.1及第14页表4）。本任务只取预测长度96，要求在 test 上报告 MSE；不应将四个预测长度的平均结果当作本任务结果。", "data_and_evaluation/3": "论文训练设置：PDF 第14页规定使用 PyTorch、单张 NVIDIA P100 16GB、ADAM、L2损失、batch size=32、训练10个 epoch；初始学习率从 {0.001,0.0005,0.0001} 中选择，编码块数 L∈{2,3,4}，表示维数 D∈{256,512}。这些是论文给出的实验设置或候选集合，所给页面没有指明 Traffic、96→96 最终采用哪一个候选组合。L2损失不能解释为已经指定了 L2权重衰减。", "data_and_evaluation/4": "可实施的损失和评估约定：将 L2损失实现为预测与未来96步目标之间的元素均方误差；测试指标定义为 MSE=Σ_{i=1}^{M}Σ_{s=1}^{96}Σ_{n=1}^{862}(Ŷ_{i,s,n}−Y_{i,s,n})²/(M×96×862)，其中 M 是测试窗口数。这一具体 reduction 是运行约定，论文选页只给出了 L2损失和 MSE 名称。计算时累计全部测试元素的平方误差和元素数，避免对大小不同的批次均值直接做等权平均。", "data_and_evaluation/5": "评估尺度需明确：所给页面没有完整说明数据集级标准化的拟合范围、参数和最终 MSE 所处尺度。若采用数据集级标准化，应仅用训练段拟合，再应用于验证和测试；这是避免泄漏的实施要求。还应明确预测是否经过历史窗口归一化的逆变换，以及是否进一步逆变换到原始道路占用率尺度。这些尺度下的 MSE 不能混为同一指标。", "data_and_evaluation/6": "参考结果：PDF 第14页表5报告 Traffic、预测长度96的五个随机种子结果为 MSE=0.395±0.001、MAE=0.268±0.001；正文说明 ± 对应标准差。该值是论文参考结果，不是本次已经完成的复现实测，也不是单次运行必须达到的阈值。只有数据版本、窗口、预处理、评估尺度和训练配置对齐后，数值比较才有充分依据。", "data_and_evaluation/+": "(append a missing requirement here)", "ambiguous_or_tunable/0": "论文候选集合内的运行选择：可将 L=2、D=512、初始学习率0.001作为起始配置，并采用论文给出的 batch size=32、10个 epoch。前三项是从论文候选集合中选择的示例，不能表述为已由选页确认的 Traffic 最优配置；实际选择应依据验证集，测试集用于最终报告。", "ambiguous_or_tunable/1": "页面未指定的结构参数：注意力头数、d_ff、具体激活、dropout 概率、嵌入层深度和预测头深度均未唯一确定。若需要一个明确的起始实现，可选择8个头、每头64维、d_ff=2048、GELU、dropout=0.1、Linear(96,512)嵌入和Linear(512,96)预测头。以上均为示例运行选择，所给论文页面没有证明它们是原实验配置。", "ambiguous_or_tunable/2": "注意力及编码块的补全：标准全变量注意力可选择不加因果掩码，因为 token 轴是变量轴，输入均来自历史窗口；这是具体实现选择。第13页算法1列出每个块内两次 LayerNorm，没有另外列出编码器末尾的独立 LayerNorm。若增加末尾归一化或修改残差、dropout位置，应单独记录，不能宣称这些细节已由算法1规定。", "ambiguous_or_tunable/3": "归一化细节的补全：一个明确的运行选择是令 μ_{b,n}=mean_t(X_{b,t,n})，σ_{b,n}=sqrt(mean_t((X_{b,t,n}−μ_{b,n})²)+10^{-5})，在输入端标准化，在投影后恢复；LayerNorm 可选择沿 D 维使用 epsilon=10^{-5} 和可学习仿射参数。上述 epsilon、总体方差约定、仿射参数及是否对 μ、σ停止梯度均需在实现记录中声明，选页不足以确认其官方取值。", "ambiguous_or_tunable/4": "数据与窗口细节：数据集文件版本、缺失值处理、数据集级标准化、切分精确索引、滑窗步长，以及验证和测试窗口能否读取前一个切分末尾的历史，均未在选页完整给出。可实施约定是步长1、每个预测窗口的全部96步目标都属于对应切分，历史上下文可以来自预测起点之前；这是运行协议，仍需与原基准的具体边界核对才能声称严格复现。", "ambiguous_or_tunable/5": "训练流程的补全：ADAM 的 beta、epsilon、weight decay、学习率调度、梯度裁剪、随机种子、检查点选择及早停规则未在选页明确。可选择完整训练10个 epoch，并按验证 MSE 选取检查点；这是运行选择。若运行提前停止，应报告实际 epoch 数及其与论文固定10个 epoch 设置的差异。", "ambiguous_or_tunable/6": "变量采样是可选策略：PDF 第9页提出每批随机采样部分变量训练、推理时预测全部变量；第17页举出20%变量训练，并讨论替换为线性复杂度注意力。这些属于效率策略，不是完成基本 iTransformer 必须采用的组件。基础实现可选择全部862个变量参与每批训练；若采样或替换注意力，应注明比例和机制。", "ambiguous_or_tunable/7": "证据边界：以上规格仅从请求提供的PDF选页和目标实验提取，未核验官方代码，未执行训练或测试。可以据此实现方法的核心结构，但不能将未给出的配置、数据处理细节或示例运行选择包装成论文已确认事实。", "ambiguous_or_tunable/+": "(append a missing requirement here)"}
+Sources:
+[pdf/1]
+Published as a conference paper at ICLR 2024
+ITRANSFORMER : I NVERTED TRANSFORMERS ARE
+EFFECTIVE FOR TIME SERIES FORECASTING
+Yong Liu∗, Tengge Hu∗, Haoran Zhang∗, Haixu Wu, Shiyu Wang§, Lintao Ma§, Mingsheng LongB
+School of Software, BNRist, Tsinghua University, Beijing 100084, China
+§Ant Group, Hangzhou, China
+{liuyong21,htg21,z-hr20,whx20}@mails.tsinghua.edu.cn
+{weiming.wsy,lintao.mlt}@antgroup.com, mingsheng@tsinghua.edu.cn
+ABSTRACT
+The recent boom of linear forecasting models questions the ongoing passion for
+architectural modifications of Transformer-based forecasters. These forecasters
+leverage Transformers to model the global dependencies over temporal tokens of
+time series, with each token formed by multiple variates of the same timestamp.
+However, Transformers are challenged in forecasting series with larger lookback
+windows due to performance degradation and computation explosion. Besides, the
+embedding for each temporal token fuses multiple variates that represent potential
+delayed events and distinct physical measurements, which may fail in learning
+variate-centric representations and result in meaningless attention maps. In this
+work, we reflect on the competent duties of Transformer components and repurpose
+the Transformer architecture without any modification to the basic components. We
+propose iTransformer that simply applies the attention and feed-forward network
+on the inverted dimensions. Specifically, the time points of individual series are em-
+bedded into variate tokens which are utilized by the attention mechanism to capture
+multivariate correlations; meanwhile, the feed-forward network is applied for each
+variate token to learn nonlinear representations. The iTransformer model achieves
+state-of-the-art on challenging real-world datasets, which further empowers the
+Transformer family with promoted performance, generalization ability across differ-
+ent variates, and better utilization of arbitrary lookback windows, making it a nice
+alternative as the fundamental backbone of time series forecasting. Code is avail-
+able at this repository: https://github.com/thuml/iTransformer.
+1 I NTRODUCTION
+ETT
+ECL
+Traffic Weather
+Solar
+PEMS0.38
+1.42
+0.91
+0.18 0.280.23
+0.43
+0.67
+0. 55
+0.26
+0.66
+0.46
+0.230.33 0.28
+0.12
+0.32
+0.22
+iTransformer
+Transformer
+P atchTST
+TimesNet
+DLinear
+FEDformer
+Figure 1: Performance of iTrans-
+former. Average results (MSE) are
+reported following TimesNet (2023).
+Transformer (Vaswani et al., 2017) has achieved tremendous suc-
+cess in natural language processing (Brown et al., 2020) and
+computer vision (Dosovitskiy et al., 2021), growing into the foun-
+dation model that follows the scaling law (Kaplan et al., 2020).
+Inspired by the immense success in extensive fields, Transformer
+with strong capabilities of depicting pairwise dependencies and
+extracting multi-level representations in sequences is emerging
+in time series forecasting (Wu et al., 2021; Nie et al., 2023).
+However, researchers have recently begun to question the validity
+of Transformer-based forecasters, which typically embed multiple
+variates of the same timestamp into indistinguishable channels
+and apply attention on these temporal tokens to capture temporal
+dependencies. Considering the numerical but less semantic rela-
+tionship among time points, researchers find that simple linear
+layers, which can be traced back to statistical forecasters (Box &
+Jenkins, 1968), have exceeded complicated Transformers on both performance and efficiency (Zeng
+et al., 2023; Das et al., 2023). Meanwhile, ensuring the independence of variate and utilizing mutual
+∗Equal Contribution
+1
+arXiv:2310.06625v4  [cs.LG]  14 Mar 2024
+[pdf/3]
+Published as a conference paper at ICLR 2024
+2 R ELATED WORK
+With the progressive breakthrough made in natural language processing and computer vision areas,
+elaboratively designed Transformer variants are proposed to tackle ubiquitous time series forecasting
+applications. Going beyond contemporaneous TCNs (Bai et al., 2018; Liu et al., 2022a) and RNN-
+based forecasters (Zhao et al., 2017; Rangapuram et al., 2018; Salinas et al., 2020), Transformer has
+exhibited powerful sequence modeling capability and promising model scalability, leading to the
+trend of passionate modifications adapted for time series forecasting.
+Through a systematical review of Transformer-based forecasters, we conclude that existing modifi-
+cations can be divided into four categories by whether to modify the component and architecture.
+As shown in Figure 3, the first category (Wu et al., 2021; Li et al., 2021; Zhou et al., 2022), which
+is the most common practice, mainly concerns the component adaptation, especially the attention
+module for the temporal dependency modeling and the complexity optimization on long sequences.
+Nevertheless, with the rapid emergence of linear forecasters (Oreshkin et al., 2019; Zeng et al.,
+2023; Das et al., 2023; Liu et al., 2023), the impressive performance and efficiency continuously
+challenge this direction. Soon afterward, the second category attempts to fully utilize Transformer.
+It pays more attention to the inherent processing of time series, such as Stationarization (Liu et al.,
+2022b), Channel Independence, and Patching (Nie et al., 2023), which bring about consistently
+improved performance. Moreover, faced with the increasing significance of the independence and
+mutual interactions of multiple variates, the third category refurbishes Transformer in both aspects of
+component and architecture. Representative (Zhang & Yan, 2023) explicitly captures the cross-time
+and cross-variate dependencies by the renovated attention mechanism and architecture.
+Unlike previous works, iTransformer modifies none of the native components of Transformer. Instead,
+we adopt the components on the inverted dimensions with the altered architecture, as the only one that
+belongs to the fourth category to our best knowledge. We believe the capabilities of the components
+have stood the test extensively, the truth is that the architecture of Transformer is improperly adopted.
+(II) PatchTST, NSTransformer,…
+Modified Attn
+Attention
+Feed-forward
+Add & Norm
+Series Processing
+Original Arch
+Transformer
+Modified Architecture
+Modified  
+Component
+(I) Autoformer, Informer,… (III) Crossformer,…
+(IV) iTransformer(Ours)
+No Modified Architecture
+No Modified  
+ComponentModified Arch
+Figure 3: Transformer-based forecasters categorized by component and architecture modifications.
+3 ITRANSFORMER
+In multivariate time series forecasting, given historical observations X = {x1, . . . ,xT } ∈RT ×N
+with T time steps and N variates, we predict the future S time steps Y = {xT +1, . . . ,xT +S} ∈
+RS×N . For convenience, we denote Xt,: as the simultaneously recorded time points at the step t, and
+X:,n as the whole time series of each variate indexed by n. It is notable that Xt,: may not contain
+time points that essentially reflect the same event in real-world scenarios because of the systematical
+time lags among variates in the dataset. Besides, the elements of Xt,: can be distinct from each other
+in physical measurements and statistical distributions, for which a variate X:,n generally shares.
+3.1 S TRUCTURE OVERVIEW
+Our proposed iTransformer illustrated in Figure 4 adopts the encoder-only architecture of Trans-
+former (Vaswani et al., 2017), including the embedding, projection, and Transformer blocks.
+Embedding the whole series as the token Most Transformer-based forecasters typically regard
+multiple variates of the same time as the (temporal) token and follow the generative formulation of
+forecasting tasks. However, we find the approach on the numerical modality can be less instructive for
+3
+[pdf/4]
+Published as a conference paper at ICLR 2024
+Raw
+Series
+Embedded
+Variate Tokens
+Features
+Variate
+θ
+Embedding
+!𝑥=𝑥−µσ
+Temporal LayerNorm
+Multivariate
+Correlations
+Map
+Query
+Key
+Value
+MatMul Scale
+MatMul
+Variate
+Dense Act & Drop
+Embedding
+Projection
+Input
+Output
+Multivariate
+Attention
+LayerNorm
+Feed-forward
+Q K V
+L	×
+LayerNorm
++
+µσ +
+Dense
+TrmBlock
+(b)(a)
+(c)(d)
+Variate
+Features
+Figure 4: Overall structure of iTransformer, which shares the same modular arrangement with the
+encoder of Transformer. (a) Raw series of different variates are independently embedded as tokens.
+(b) Self-attention is applied to embedded variate tokens with enhanced interpretability revealing
+multivariate correlations. (c) Series representations of each token are extracted by the shared feed-
+forward network. (d) Layer normalization is adopted to reduce the discrepancies among variates.
+learning attention maps, which is supported by increasing applications of Patching (Dosovitskiy et al.,
+2021; Nie et al., 2023) that broadens the respective field. Meanwhile, the triumph of linear forecasters
+also challenges the necessity of adopting a heavy encoder-decoder Transformer for generating tokens.
+Instead, our proposed encoder-only iTransformer focuses on representation learning and adaptive
+correlating of multivariate series. Each time series driven by the underlying complicated process
+is firstly tokenized to describe the properties of the variate, applied by self-attention for mutual
+interactions, and individually processed by feed-forward networks for series representations. Notably,
+the task to generate the predicted series is essentially delivered to linear layers, which has been proven
+competent by previous work (Das et al., 2023) and we provide a detailed analysis in the next section.
+Based on the above considerations, in iTransformer, the process of predicting future series of each
+specific variate ˆY:,n based on the lookback series X:,n is simply formulated as follows:
+h0n = Embedding(X:,n),
+Hl+1 = TrmBlock(Hl), l= 0, . . . , L− 1,
+ˆY:,n = Projection(hLn ),
+(1)
+where H = {h1, . . . ,hN } ∈RN ×D contains N embedded tokens of dimension D and the su-
+perscript denotes the layer index. Embedding : RT 7→ RD and Projection : RD 7→ RS are
+both implemented by multi-layer perceptron (MLP). The obtained variate tokens interact with each
+other by self-attention and are independently processed by the shared feed-forward network in each
+TrmBlock. Specifically, as the order of sequence is implicitly stored in the neuron permutation of the
+feed-forward network, the position embedding in the vanilla Transformer is no longer needed here.
+iTransformers The architecture essentially presupposes no more specific requirements on Trans-
+former variants, other than the attention is applicable for multivariate correlation. Thus, a bundle of
+efficient attention mechanisms (Li et al., 2021; Wu et al., 2022; Dao et al., 2022) can be the plugins,
+reducing the complexity when the variate number grows large. Besides, with the input flexibility of
+attention, the token number can vary from training to inference, and the model is allowed to be trained
+on arbitrary numbers of variates. The inverted Transformers, named iTransformers, are extensively
+evaluated in experiments of Section 4.2 and demonstrate advantages on time series forecasting.
+3.2 I NVERTED TRANSFORMER COMPONENTS
+We organize a stack of L blocks composed of the layer normalization, feed-forward network, and
+self-attention modules. But their duties on the inverted dimension are carefully reconsidered.
+4
+[pdf/5]
+Published as a conference paper at ICLR 2024
+Layer normalization Layer normalization (Ba et al., 2016) is originally proposed to increase
+the convergence and training stability of deep networks. In typical Transformer-based forecasters,
+the module normalizes the multivariate representation of the same timestamp, gradually fusing the
+variates with each other. Once the collected time points do not represent the same event, the operation
+will also introduce interaction noises between noncausal or delayed processes. In our inverted version,
+the normalization is applied to the series representation of individual variate as Equation 2, which
+has been studied and proved effective in tackling non-stationary problems (Kim et al., 2021; Liu
+et al., 2022b). Besides, since all series as (variate) tokens are normalized to a Gaussian distribution,
+the discrepancies caused by inconsistent measurements can be diminished. By contrast, in previous
+architecture, different tokens of time steps will be normalized, leading to oversmooth time series.
+LayerNorm(H) =
+(
+hn − Mean(hn)p
+Var(hn)
+ n = 1, . . . , N) (2)
+Feed-forward network Transformer adopts the feed-forward network (FFN) as the basic building
+block for encoding token representation and it is identically applied to each token. As aforementioned,
+in the vanilla Transformer, multiple variates of the same timestamp that form the token can be
+malpositioned and too localized to reveal enough information for predictions. In the inverted version,
+FFN is leveraged on the series representation of each variate token. By the universal approximation
+theorem (Hornik, 1991), they can extract complicated representations to describe a time series. With
+the stacking of inverted blocks, they are devoted to encoding the observed time series and decoding
+the representations for future series using dense non-linear connections, which work effectively as
+the recent works completely built on MLPs (Tolstikhin et al., 2021; Das et al., 2023).
+More interestingly, the identical linear operation on independent time series, which serves as the
+combination of the recent linear forecasters (Zeng et al., 2023) and Channel Independence (Nie et al.,
+2023), can be instructive for us to understand the series representations. Recent revisiting on linear
+forecasters (Li et al., 2023) highlights that temporal features extracted by MLPs are supposed to be
+shared within distinct time series. We propose a rational explanation that the neurons of MLP are
+taught to portray the intrinsic properties of any time series, such as the amplitude, periodicity, and even
+frequency spectrums (neuron as a filter), serving as a more advantageous predictive representation
+learner than the self-attention applied on time points. Experimentally, we validate that the division of
+labor helps enjoy the benefits of linear layers in Section 4.3, such as the promoted performance if
+providing enlarged lookback series, and the generalization ability on unseen variates.
+Self-attention While the attention mechanism is generally adopted for facilitating the temporal
+dependencies modeling in previous forecasters, the inverted model regards the whole series of one
+variate as an independent process. Concretely, with comprehensively extracted representations of
+each time series H = {h0, . . . ,hN } ∈RN ×D, the self-attention module adopts linear projections to
+get queries, keys, and values Q, K, V ∈ RN ×dk, where dk is the projected dimension.
+With denotation of qi, kj ∈ Rdk as the specific query and key of one (variate) token, we notice
+that each entry of the pre-Softmax scores is formulated as Ai,j = (QK⊤/√dk)i,j ∝ q⊤i kj. Since
+each token is previously normalized on its feature dimension, the entries can somewhat reveal the
+variate-wise correlation, and the whole score map A ∈ RN ×N exhibits the multivariate correlations
+between paired variate tokens. Consequently, highly correlated variate will be more weighted for the
+next representation interaction with values V. Based on this intuition, the proposed mechanism is
+believed to be more natural and interpretable for multivariate series forecasting. We further provide
+the visualization analysis of the score map in Section 4.3 and Appendix E.1.
+4 E XPERIMENTS
+We thoroughly evaluate the proposed iTransformer on various time series forecasting applications,
+validate the generality of the proposed framework and further dive into the effectiveness of applying
+the Transformer components on the inverted dimensions of time series.
+Datasets We extensively include 7 real-world datasets in our experiments, including ECL, ETT (4
+subsets), Exchange, Traffic, Weather used by Autoformer (Wu et al., 2021), Solar-Energy datasets
+5
+[pdf/9]
+Published as a conference paper at ICLR 2024
+Analysis of multivariate correlations By assigning the duty of multivariate correlation to the
+attention mechanism, the learned map enjoys enhanced interpretability. We present the case visual-
+ization on series from Solar-Energy in Figure 7, which has distinct correlations in the lookback and
+future windows. It can be observed that in the shallow attention layer, the learned map shares lots of
+similarities to the correlations of raw input series. As it dives into deeper layers, the learned map
+become gradually alike to the correlations of future series, which validates the inverted operation
+empowers interpretable attention for correlating, and the processes of encoding the past and decoding
+for the future are essentially conducted in series representations during feed-forwarding.
+LookbackCorrelations FutureCorrelations
+ScoreMapofLayer1 ScoreMapofLayerL
+Figure 7: Analysis of series representations and multivariate correlations. Left: MSE and CKA
+similarity of representations comparison between Transformers and iTransformers. A higher CKA
+similarity indicates more favored representations for accurate predictions. Right: A case visualization
+of multivariate correlations of raw time series and the learned score maps by inverted self-attention.
+Efficient training strategy Due to the quadratic complexity of self-attention, it can be overwhelm-
+ing for training on numerous variates, which is very common in real-world scenarios. In addition to
+efficient attention mechanisms, we propose a novel training strategy for high-dimensional multivariate
+series by taking advantage of previously demonstrated variate generation capability. Concretely, we
+randomly choose part of the variates in each batch and only train the model with selected variates.
+Since the number of variate channels is flexible because of our inverting, the model can predict all
+the variates for predictions. As shown in Figure 8, the performance of our proposed strategy is still
+comparable with full-variate training, while the memory footprint can be reduced significantly.
+    
+6DPSOH5DWLR
+
+
+
+06(
+    
+6DPSOH5DWLR
+
+
+
+*%
+(&/ 7UDIILF 6RODU(QHUJ\
+Figure 8: Analysis of the efficient training strategy. While the performance (left) remains stable on
+partially trained variates of each batch with different sampled ratios, the memory footprint (right) can
+be cut off greatly. We provide the comprehensive model efficiency analysis in Appendix D.
+5 C ONCLUSION AND FUTURE WORK
+Considering the characteristics of multivariate time series, we propose iTransformer that inverts the
+structure of Transformer without modifying any native modules. iTransformer regards independent
+series as variate tokens to capture multivariate correlations by attention and utilize layer normalization
+and feed-forward networks to learn series representations. Experimentally, iTransformer achieves
+state-of-the-art performance and exhibits remarkable framework generality supported by promising
+analysis. In the future, we will explore large-scale pre-training and more time series analysis tasks.
+9
+[pdf/13]
+Published as a conference paper at ICLR 2024
+A I MPLEMENTATION DETAILS
+A.1 D ATASET DESCRIPTIONS
+We conduct experiments on 7 real-world datasets to evaluate the performance of the proposed
+iTransformer including (1) ETT (Li et al., 2021) contains 7 factors of electricity transformer from
+July 2016 to July 2018. There are four subsets where ETTh1 and ETTh2 are recorded every hour,
+and ETTm1 and ETTm2 are recorded every 15 minutes. (2) Exchange (Wu et al., 2021) collects the
+panel data of daily exchange rates from 8 countries from 1990 to 2016. (3) Weather (Wu et al., 2021)
+includes 21 meteorological factors collected every 10 minutes from the Weather Station of the Max
+Planck Biogeochemistry Institute in 2020. (4) ECL (Wu et al., 2021) records the hourly electricity
+consumption data of 321 clients. (5) Traffic (Wu et al., 2021) collects hourly road occupancy rates
+measured by 862 sensors of San Francisco Bay area freeways from January 2015 to December 2016.
+(6) Solar-Energy (Lai et al., 2018) records the solar power production of 137 PV plants in 2006,
+which are sampled every 10 minutes. (7) PEMS contains the public traffic network data in California
+collected by 5-minute windows. We use the same four public subsets (PEMS03, PEMS04, PEMS07,
+PEMS08) adopted in SCINet (Liu et al., 2022a).
+Apart from the public datasets widely used as forecasting benchmarks, we also collect a set of Market
+datasets of a real-world application, which records the minute-sampled server load of Alipay online
+transactions between January 30th, 2023, and April 9th, 2023 with the number of variates varied from
+285 to 759. It includes 6 sub-datasets, which are divided according to diverse transaction domains.
+We follow the same data processing and train-validation-test set split protocol used in TimesNet (Wu
+et al., 2023), where the train, validation, and test datasets are strictly divided according to chronologi-
+cal order to make sure there are no data leakage issues. As for the forecasting settings, we fix the
+length of the lookback series as 96 in ETT, Weather, ECL, Solar-Energy, PEMS, and Traffic, and the
+prediction length varies in {96, 192, 336, 720}. For the PEMS dataset, the prediction length varies in
+{12, 24, 36, 48}, which is the same as SCINet, the previous state-of-the-art on this dataset. For the
+Market dataset, the lookback contains the past one day observations with 144 time points and the
+forecasting length varies in {12, 24, 72, 144}. The details of datasets are provided in Table 4.
+A.2 I MPLEMENTATION DETAILS
+Algorithm 1 iTransformer - Overall Architecture.
+Require: Input lookback time series X ∈ RT ×N ; input Length T ; predicted length S; variates
+number N; token dimension D; iTransformer block number L.
+1: X = X.transpose ▷ X ∈ RN ×T
+2: ▷ Multi-layer Perceptron works on the last dimension to embed series into variate tokens.
+3: H0 = MLP(X) ▷ H0 ∈ RN ×D
+4: for l in {1, . . . , L}: ▷ Run through iTransformer blocks.
+5: for ▷ Self-attention layer is applied on variate tokens.
+6: for Hl−1 = LayerNorm Hl−1 + Self-Attn(Hl−1) ▷ Hl−1 ∈ RN ×D
+7: for ▷ Feed-forward network is utilized for series representations, broadcasting to each token.
+8: for Hl = LayerNorm Hl−1 + Feed-Forward(Hl−1) ▷ Hl ∈ RN ×D
+9: for ▷ LayerNorm is adopted on series representations to reduce variates discrepancies.
+10: End for
+11: ˆY = MLP(HL) ▷ Project tokens back to predicted series, ˆY ∈ RN ×S
+12: ˆY = ˆY.transpose ▷ ˆY ∈ RS×N
+13: Return ˆY ▷ Return the prediction result ˆY
+13
+[pdf/14]
+Published as a conference paper at ICLR 2024
+Table 4: Detailed dataset descriptions. Dim denotes the variate number of each dataset. Dataset
+Size denotes the total number of time points in (Train, Validation, Test) split respectively.Prediction
+Length denotes the future time points to be predicted and four prediction settings are included in each
+dataset. Frequency denotes the sampling interval of time points.
+Dataset Dim Prediction Length Dataset Size Frequency Information
+ETTh1, ETTh2 7 {96, 192, 336, 720} (8545, 2881, 2881) Hourly Electricity
+ETTm1, ETTm2 7 {96, 192, 336, 720} (34465, 11521, 11521) 15min Electricity
+Exchange 8 {96, 192, 336, 720} (5120, 665, 1422) Daily Economy
+Weather 21 {96, 192, 336, 720} (36792, 5271, 10540) 10min Weather
+ECL 321 {96, 192, 336, 720} (18317, 2633, 5261) Hourly Electricity
+Traffic 862 {96, 192, 336, 720} (12185, 1757, 3509) Hourly Transportation
+Solar-Energy 137 {96, 192, 336, 720} (36601, 5161, 10417) 10min Energy
+PEMS03 358 {12, 24, 48, 96} (15617, 5135, 5135) 5min Transportation
+PEMS04 307 {12, 24, 48, 96} (10172, 3375, 3375) 5min Transportation
+PEMS07 883 {12, 24, 48, 96} (16911, 5622, 5622) 5min Transportation
+PEMS08 170 {12, 24, 48, 96} (10690, 3548, 3548) 5min Transportation
+Market-Merchant 285 {12, 24, 72, 144} (7045, 1429, 1429) 10min Transaction
+Market-Wealth 485 {12, 24, 72, 144} (7045, 1429, 1429) 10min Transaction
+Market-Finance 405 {12, 24, 72, 144} (7045, 1429, 1429) 10min Transaction
+Market-Terminal 307 {12, 24, 72, 144} (7045, 1429, 1429) 10min Transaction
+Market-Payment 759 {12, 24, 72, 144} (7045, 1429, 1429) 10min Transaction
+Market-Customer 395 {12, 24, 72, 144} (7045, 1429, 1429) 10min Transaction
+All the experiments are implemented in PyTorch (Paszke et al., 2019) and conducted on a single
+NVIDIA P100 16GB GPU. We utilize ADAM (Kingma & Ba, 2015) with an initial learning rate in
+{10−3, 5 × 10−4, 10−4} and L2 loss for the model optimization. The batch size is uniformly set to 32
+and the number of training epochs is fixed to 10. We set the number of inverted Transformer blocks in
+our proposed model L ∈ {2, 3, 4}. The dimension of series representations D is set from {256, 512}.
+All the compared baseline models that we reproduced are implemented based on the benchmark of
+TimesNet (Wu et al., 2023) Repository, which is fairly built on the configurations provided by each
+model’s original paper or official code. We provide the pseudo-code of iTransformer in Algorithm 1.
+We also report the standard deviation of iTransformer performance under five runs with different
+random seeds in Table 5, which exhibits that the performance of iTransformer is stable.
+Table 5: Robustness of iTransformer performance. The results are obtained from five random seeds.
+Dataset ECL ETTh2 Exchange
+Horizon MSE MAE MSE MAE MSE MAE
+96 0.148±0.000 0.240±0.000 0.297±0.002 0.349±0.001 0.088±0.001 0.209±0.001
+192 0.162±0.002 0.253±0.002 0.380±0.001 0.400±0.001 0.181±0.001 0.304±0.001
+336 0.178±0.000 0.269±0.001 0.428±0.002 0.432±0.001 0.334±0.001 0.419±0.001
+720 0.225±0.006 0.317±0.007 0.427±0.004 0.445±0.002 0.829±0.012 0.691±0.005
+Dataset Solar-Energy Traffic Weather
+Horizon MSE MAE MSE MAE MSE MAE
+96 0.203±0.002 0.237±0.002 0.395±0.001 0.268±0.001 0.174±0.000 0.214±0.000
+192 0.233±0.002 0.261±0.001 0.417±0.002 0.276±0.001 0.221±0.002 0.254±0.001
+336 0.248±0.000 0.273±0.000 0.433±0.004 0.283±0.000 0.278±0.002 0.296±0.001
+720 0.249±0.001 0.275±0.000 0.467±0.003 0.302±0.000 0.358±0.000 0.349±0.000
+14
+[pdf/17]
+Published as a conference paper at ICLR 2024
+with the efficient flow attention module (Wu et al., 2022); linear models: DLinear (Zeng et al., 2023)
+and TiDE (Das et al., 2023); Transformers: Transformer (Vaswani et al., 2017), PatchTST (Nie
+et al., 2023), and Crossformer (Zhang & Yan, 2023). The results are recorded with the official
+model configuration and the same batch size. In Figure 10, we compare the efficiency under two
+representative datasets (21 variates in Weather and 862 in Traffic) with96 time steps for lookback.
+In a nutshell, the efficiency of iTransformer exceeds other Transformers in datasets with a relatively
+small number of variates (Weather). In datasets with numerous variates (Traffic), the memory
+footprints are basically the same as Transformers variates, but iTransformer can be trained faster.
+Based on the complexity of O(N 2) of the attention module, where N is the number of tokens,
+Transformer surpasses iTransformer on efficiency in this case because ofN = 96 for the temporal
+token and N = 862 for the variate token. Meanwhile, iTransformer achieves better performance
+on numerous variates, since the multivariate correlations can be explicitly utilized. By adopting a
+linear-complexity attention (Wu et al., 2022) or the proposed efficient training strategy as mentioned
+in Figure 8 (trained on 20% variates and forecast all variates), iTransformer can enjoy a comparable
+speed and memory footprint with linear models. Also, the two strategies can be adopted together.
+E S HOWCASES
+E.1 V ISUALIZATION OF MULTIVARIATE CORRELATIONS
+By using the attention mechanism on variate tokens, the resulting learned map becomes more
+interpretable. To present an intuitive understanding of the multivariate correlations, we provide three
+randomly chosen case visualizations of the time series from Solar-Energy in Figure 11. We provide
+the Pearson Correlation coefficients of each variate of the raw series by the following equation:
+ρxy =
+P
+i(xi − ¯x)(yi − ¯y)pP
+i(xi − ¯x)2pPi(yi − ¯y)2 ,
+where xi, yi ∈ R run through all time points of the paired variates to be correlated. All the cases have
+distinct multivariate correlations in the lookback and forecast window because the dataset exhibits
+obvious seasonal changes in the daytime and night. On the second row of each case, we provide the
+learned pre-Softmax maps of the self-attention module in both the first and the last layers. As we
+observe in the shallow attention layer (left), we find that the learned map is similar to the correlations
+of the raw lookback series. As we go deeper into the layers (right), the learned map gradually
+becomes more similar to the correlations of the future series to be predicted. This demonstrates that
+the inverted operation allows for interpretable attention in correlating, and that encoding of the past
+and decoding for the future are conducted through series representations during layer stacking.
+LookbackCorrelations FutureCorrelations
+ScoreMapofLayer1 ScoreMapofLayerL
+LookbackCorrelations FutureCorrelations
+ScoreMapofLayer1 ScoreMapofLayerL
+LookbackCorrelations FutureCorrelations
+ScoreMapofLayer1 ScoreMapofLayerL
+Case1 Case2 Case3
+Figure 11: Multivariate correlations of the lookback series and future series and the learned score
+maps by inverted self-attention of different layers. Cases all come from the Solar-Energy dataset.
+We present another interesting observation in Figure 12 to show that the attention module of iTrans-
+former has enhanced interpretability. We provide randomly chosen multivariate time series from
+Market. In this dataset, each variate represents the monitored values of a service interface of a kind,
+17
+[task/method]
+iTransformer
+[task/dataset]
+Traffic
+[task/objective]
+根据过去 96 步的多变量序列预测未来 96 步。
+[task/lookback_len]
+96
+[task/label_len]
+48
+[task/pred_len]
+96
+[task/metric]
+MSE
+[task/evaluation_split]
+test
+[config/seq_len]
+96
+[config/label_len]
+48
+[config/pred_len]
+96
+[config/d_model]
+32
+[config/n_heads]
+2
+[config/e_layers]
+2
+[config/d_ff]
+64
+[config/dropout]
+0.1
+[config/batch_size]
+32
+[config/eval_batch_size]
+4
+[config/epochs]
+10
+[config/lr]
+0.001
+[config/lr_schedule]
+constant
+[config/seed]
+2026
+[config/threads]
+4
+[config/variables_per_train_window]
+172
+[config/device]
+cpu
+[config/paper_pages]
+[1, 3, 4, 5, 9, 13, 14, 17]

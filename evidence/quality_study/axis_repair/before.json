@@ -1,0 +1,142 @@
+{
+  "passed": false,
+  "status": "failed",
+  "checks": [
+    {
+      "criterion": "real_training_window",
+      "status": "passed",
+      "detail": "Checked forecast dimensions and finiteness on a real training window.",
+      "evidence": {
+        "status": "passed",
+        "input_shape": [
+          1,
+          96,
+          862
+        ],
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      }
+    },
+    {
+      "criterion": "output_contract",
+      "status": "passed",
+      "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+      "input_shape": [
+        3,
+        96,
+        7
+      ],
+      "expected_horizon": 96,
+      "sensor_counts": [
+        7,
+        5
+      ]
+    },
+    {
+      "criterion": "variable_attention",
+      "status": "failed",
+      "detail": "Observed an attention axis or output inconsistent with unmasked scaled attention over variables.",
+      "expected_layers": 2,
+      "matched_projection_inputs": 0,
+      "builtin_mha": [],
+      "sdpa_calls": [
+        {
+          "query_shape": [
+            3,
+            7,
+            2,
+            16
+          ],
+          "key_shape": [
+            3,
+            7,
+            2,
+            16
+          ],
+          "tokens_ok": false,
+          "width_ok": true,
+          "formula_ok": false,
+          "batch_heads": 21
+        },
+        {
+          "query_shape": [
+            3,
+            7,
+            2,
+            16
+          ],
+          "key_shape": [
+            3,
+            7,
+            2,
+            16
+          ],
+          "tokens_ok": false,
+          "width_ok": true,
+          "formula_ok": false,
+          "batch_heads": 21
+        }
+      ]
+    },
+    {
+      "criterion": "encoder_residual_order",
+      "status": "passed",
+      "layers": [
+        {
+          "attention": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          },
+          "ffn": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          }
+        },
+        {
+          "attention": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          },
+          "ffn": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          }
+        }
+      ],
+      "observed_token_norms": 4,
+      "detail": "Checked both post-residual normalization inputs in each observed block on a synthetic forward pass."
+    },
+    {
+      "criterion": "sensor_permutation",
+      "status": "passed",
+      "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+      "max_abs_error": 0.0
+    },
+    {
+      "criterion": "batch_independence",
+      "status": "passed",
+      "detail": "Changing one window must leave the other samples' forecasts unchanged.",
+      "max_abs_error": 0.0
+    },
+    {
+      "criterion": "cross_sensor_effect",
+      "status": "failed",
+      "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+      "max_effect_on_other_sensors": 0.0
+    },
+    {
+      "criterion": "history_scale_restore",
+      "status": "passed",
+      "detail": "Change each sensor's offset/scale independently and check its restoration.",
+      "max_abs_error": 1.0967254638671875e-05
+    }
+  ],
+  "model_sha256": "4cf11bda80f0ace36464272fef9a260eadb87a66b5d62aaf45b0bd4f69f9bef5",
+  "seed": 7631,
+  "protocol_version": 2,
+  "input": "real training window and synthetic",
+  "torch": "2.5.1+cpu"
+}

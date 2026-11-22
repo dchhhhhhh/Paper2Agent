@@ -1,0 +1,22 @@
+{
+  "tokens_and_head": {
+    "verdict": "pass",
+    "source_lines": [25, 26, 53, 54, 67, 70, 79, 80, 86, 90],
+    "reason": "第86行将历史输入从 [B,T,N] 转置为 [B,N,T]，再用第67行的 nn.Linear(self.seq_len, self.d_model) 沿最后一维嵌入，因此每个传感器的完整历史形成一个 token，所有传感器共享同一组嵌入参数。第70、90行通过共享的 nn.Linear(self.d_model, self.pred_len) 将每个 token 投影到预测区间，并转置回 [B,S,N]。嵌入与预测头的参数形状均不依赖 N；第25、26行从运行时输入读取传感器数量，第79—80行仅要求 N≥1，没有将其固定为配置中的172。所给配置下，映射为 96→32→96，符合要求。"
+  },
+  "attention": {
+    "verdict": "pass",
+    "source_lines": [18, 19, 21, 22, 25, 26, 27, 28, 29, 30, 36, 43, 61, 62, 69],
+    "reason": "第26、27行将 Q、K、V 整理为 [B,n_heads,N,head_dim]，因此第28行的 scaled_dot_product_attention 在每个样本、每个注意力头内计算传感器之间的 N×N 注意力，不混合 batch，也不沿历史时间轴计算注意力。该调用使用默认的 1/√head_dim 缩放；配置 d_model=32、n_heads=2 时 head_dim=16，缩放因子为1/4，第61—62行还检查了维度可整除性。第28行显式设置 attn_mask=None、is_causal=False，满足无掩码要求。第29—30行合并各头并进行输出投影；第36、43、69行确保每个编码器块均执行该注意力。"
+  },
+  "encoder": {
+    "verdict": "pass",
+    "source_lines": [37, 38, 39, 40, 43, 44, 69, 88, 89],
+    "reason": "第43行执行 norm1(tokens + attention_output_dropout(attention(tokens)))，即注意力输出先与输入残差相加，再进行 LayerNorm；第44行执行 norm2(tokens + ffn(tokens))，即 FFN 同样先残差相加、后归一化，与 Algorithm 1 的两次 post-norm 顺序一致。第38、40行均使用 nn.LayerNorm(d_model)，对 [B,N,D] 的最后一个隐藏维度 D 归一化。第39行的 FFN 为共享的 D→d_ff→D 线性层、GELU 和 dropout，逐 token 作用，不混合传感器轴。第69、88—89行按配置构建并依次运行两个这样的编码器块。"
+  },
+  "forecast": {
+    "verdict": "pass",
+    "source_lines": [28, 37, 39, 53, 54, 55, 68, 72, 75, 76, 77, 78, 83, 84, 85, 86, 87, 88, 89, 90, 91],
+    "reason": "第72行 forward 只接收历史张量 x，第75—78行要求其形状为 [B,T,N] 且 T=seq_len；所给配置下 T=96。第83—85行仅沿历史时间维 dim=1 为每个样本、每个传感器计算均值与尺度，统计量形状为 [B,1,N]，没有使用未来目标。第90行直接生成 [B,pred_len,N]，即 [B,96,N]，无须自回归解码；第55行仅保存 label_len，不影响这一直接预测路径。第91行用同一 scale 和 mean 执行 forecast * scale + mean，正确恢复实例归一化前的尺度。评估模式下，第28行显式将注意力 dropout_p 设为0；第37、39、68行的 nn.Dropout 也会随 model.eval() 关闭，满足模块层面的评估 dropout 要求。"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "stage": "analysis",
+  "attempt_id": "analysis-7d2855f86b60",
+  "provider": "codex-cli",
+  "requested_model": "CLI default",
+  "started_utc": "2026-11-22T05:55:09.541296+00:00",
+  "finished_utc": "2026-11-22T05:57:17.847438+00:00",
+  "status": "completed",
+  "exit_code": 0,
+  "usage": {
+    "input_tokens": 24346,
+    "cached_input_tokens": 0,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 4042,
+    "reasoning_output_tokens": 1034
+  },
+  "cost": null,
+  "billing_note": "The CLI reports tokens, not monetary charges.",
+  "thread_id": "01a201d2-9fa5-7410-a624-6e3ba0a27dcd"
+}

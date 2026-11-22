@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "report": "quality/candidate_01/checks.json",
+  "model_sha256": "be00bef625aad9eb9e0757afaaa4e5865f083ac9c86a8b1c646e72d9c577325a",
+  "config_sha256": "ac04467e31fc27dfc43485bc0bf6604d63d426b4f06e25c86397e2224f1361f1",
+  "spec_sha256": "c17f928157f1bcd44d286e7dffd25e5d1705c3819e644e107ec5bb00df5c6b1e",
+  "card_sha256": "6ecdc56f40c9ad0a37f3bc51d70e36f70cc359df99c7aa4d51dfae34bdfa35e9",
+  "checks_sha256": "0477fd0da8bca3d3e44b44450258c3d919f66835bad24b3303af1192a5aa6f5f"
+}

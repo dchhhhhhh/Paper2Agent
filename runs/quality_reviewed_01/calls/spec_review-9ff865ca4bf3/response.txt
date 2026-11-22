@@ -1,0 +1,184 @@
+{
+  "variable_attention": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/1",
+      "requirements_with_page_evidence/2",
+      "ambiguous_or_tunable/2",
+      "ambiguous_or_tunable/6"
+    ],
+    "explanation": "The specification correctly embeds each variate’s complete historical series as one token and computes attention across variates. Unmasked access is explicitly adopted as a local choice, with access to all 172 selected variates during training and all 862 during validation and testing. The full-variate tensor descriptions are explicitly reconciled with subset training.",
+    "evidence": [
+      {
+        "source": "pdf/4",
+        "quote": "Raw series of different variates are independently embedded as tokens."
+      },
+      {
+        "source": "pdf/5",
+        "quote": "the whole score map A ∈ RN ×N exhibits the multivariate correlations\nbetween paired variate tokens."
+      },
+      {
+        "source": "pdf/4",
+        "quote": "the token number can vary from training to inference, and the model is allowed to be trained\non arbitrary numbers of variates."
+      }
+    ]
+  },
+  "encoder_head": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/3",
+      "requirements_with_page_evidence/4",
+      "requirements_with_page_evidence/7",
+      "requirements_with_page_evidence/9",
+      "ambiguous_or_tunable/2"
+    ],
+    "explanation": "The encoder-only structure, attention-residual-LayerNorm followed by FFN-residual-LayerNorm, and shared per-variate forecast projection match the supplied architecture. The head directly produces the entire future horizon. A single linear projection is appropriately presented as an implementation choice; head depth and an additional terminal LayerNorm are not falsely attributed to the paper.",
+    "evidence": [
+      {
+        "source": "pdf/3",
+        "quote": "Our proposed iTransformer illustrated in Figure 4 adopts the encoder-only architecture of Trans-\nformer (Vaswani et al., 2017), including the embedding, projection, and Transformer blocks."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "6: for Hl−1 = LayerNorm\u0000Hl−1 + Self-Attn(Hl−1)\u0001 ▷ Hl−1 ∈ RN ×D\n7: for ▷ Feed-forward network is utilized for series representations, broadcasting to each token.\n8: for Hl = LayerNorm\u0000Hl−1 + Feed-Forward(Hl−1)\u0001 ▷ Hl ∈ RN ×D"
+      },
+      {
+        "source": "pdf/4",
+        "quote": "the task to generate the predicted series is essentially delivered to linear layers"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "11: ˆY = MLP(HL) ▷ Project tokens back to predicted series, ˆY ∈ RN ×S\n12: ˆY = ˆY.transpose ▷ ˆY ∈ RS×N"
+      }
+    ]
+  },
+  "normalization": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/5",
+      "requirements_with_page_evidence/6",
+      "data_and_evaluation/5",
+      "ambiguous_or_tunable/3"
+    ],
+    "explanation": "The specification distinguishes LayerNorm over each token’s D hidden features, normalization over a historical time window, and dataset-level scaling. It correctly identifies the paper-supported feature axis while treating the window statistics axis, numerical and gradient conventions, dataset scaling, and metric scale as local choices or details to record. It does not claim that the supplied paper fixes those unspecified details.",
+    "evidence": [
+      {
+        "source": "pdf/5",
+        "quote": "the normalization is applied to the series representation of individual variate as Equation 2"
+      },
+      {
+        "source": "pdf/5",
+        "quote": "each token is previously normalized on its feature dimension"
+      },
+      {
+        "source": "pdf/4",
+        "quote": "Layer normalization is adopted to reduce the discrepancies among variates."
+      }
+    ]
+  },
+  "forecast_target": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/0",
+      "requirements_with_page_evidence/10",
+      "data_and_evaluation/0",
+      "data_and_evaluation/1",
+      "data_and_evaluation/2",
+      "data_and_evaluation/4",
+      "data_and_evaluation/7",
+      "ambiguous_or_tunable/4"
+    ],
+    "explanation": "Traffic, the 96-step lookback, label_len=48, the 96-step future horizon, and test MSE match the task. Label context is confined to the external data interface; known future targets are excluded from model input and only future predictions are scored. Chronological splitting, target membership in the corresponding split, and full test-element aggregation are covered, with exact boundary details explicitly left as local protocol choices.",
+    "evidence": [
+      {
+        "source": "task/dataset",
+        "quote": "Traffic"
+      },
+      {
+        "source": "task/objective",
+        "quote": "根据过去 96 步的多变量序列预测未来 96 步。"
+      },
+      {
+        "source": "task/lookback_len",
+        "quote": "96"
+      },
+      {
+        "source": "task/label_len",
+        "quote": "48"
+      },
+      {
+        "source": "task/pred_len",
+        "quote": "96"
+      },
+      {
+        "source": "task/metric",
+        "quote": "MSE"
+      },
+      {
+        "source": "task/evaluation_split",
+        "quote": "test"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "Require: Input lookback time series X ∈ RT ×N"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "the train, validation, and test datasets are strictly divided according to chronologi-\ncal order to make sure there are no data leakage issues."
+      }
+    ]
+  },
+  "local_protocol": {
+    "verdict": "pass",
+    "targets": [
+      "data_and_evaluation/3",
+      "data_and_evaluation/7",
+      "ambiguous_or_tunable/0",
+      "ambiguous_or_tunable/1",
+      "ambiguous_or_tunable/6"
+    ],
+    "explanation": "The frozen protocol unambiguously governs execution: D=32, 172 variates per training window, and evaluation batches of four windows covering all 862 variates and all test windows, including the final partial batch. D=32 is explicitly distinguished from the paper’s width options. The D=512 and eight-head configurations are hypothetical examples, not competing execution settings. Sampling mechanics absent from the configuration are correctly identified as local details rather than inferred facts.",
+    "evidence": [
+      {
+        "source": "config/d_model",
+        "quote": "32"
+      },
+      {
+        "source": "config/n_heads",
+        "quote": "2"
+      },
+      {
+        "source": "config/e_layers",
+        "quote": "2"
+      },
+      {
+        "source": "config/d_ff",
+        "quote": "64"
+      },
+      {
+        "source": "config/variables_per_train_window",
+        "quote": "172"
+      },
+      {
+        "source": "config/batch_size",
+        "quote": "32"
+      },
+      {
+        "source": "config/eval_batch_size",
+        "quote": "4"
+      },
+      {
+        "source": "pdf/14",
+        "quote": "The dimension of series representations D is set from {256, 512}."
+      },
+      {
+        "source": "pdf/9",
+        "quote": "randomly choose part of the variates in each batch and only train the model with selected variates."
+      },
+      {
+        "source": "pdf/17",
+        "quote": "(trained on 20% variates and forecast all variates)"
+      }
+    ]
+  }
+}

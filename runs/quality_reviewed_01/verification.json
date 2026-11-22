@@ -1,0 +1,40 @@
+{
+  "status": "verified",
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "epochs_checked": 10,
+  "best_epoch": 10,
+  "best_validation_mse": 0.4369258275504859,
+  "train_windows_per_epoch": 12089,
+  "validation_windows_per_epoch": 1661,
+  "test_windows": 3413,
+  "checkpoint_sha256": "0ab8bab1e47d3b30c4f168507391e3a0901f3fce7b31fbee36895ee2a0e7bff7",
+  "raw_data_verification": {
+    "csv_sha256": "cb06463d56fa17d87f47027cd9389ceae82a69eddee51cdb61480e120dab0b16",
+    "card_sha256": "6ecdc56f40c9ad0a37f3bc51d70e36f70cc359df99c7aa4d51dfae34bdfa35e9",
+    "standardizer_fit_rows": 12280,
+    "test_rows_reconstructed": 3508,
+    "truth_elements_checked": 3023896,
+    "truth_elementwise_exact": true,
+    "truth_max_abs_difference": 0.0,
+    "truth_rtol": 2e-07,
+    "truth_atol": 2e-07
+  },
+  "generation_verification": {
+    "status": "verified",
+    "model_sha256": "f5d2560ef3ab04d6bb2705cf3f1d4950fc7b89b32b025a357c87ffde55df673d",
+    "response_sha256": "0f489e1044f9d02204c6bce9858ba9b9272963c1a363de90147bba74b46b85e7",
+    "generation_call_id": "generation-2441f9538096",
+    "response_file": "calls/generation-2441f9538096/response.txt"
+  },
+  "test_shape": [
+    3413,
+    96,
+    862
+  ],
+  "test_sse": 137847971.70823467,
+  "test_elements": 282432576,
+  "test_mse": 0.48807391010105955,
+  "scale": "per-variable training StandardScaler",
+  "reported_mse": 0.48807391010105966,
+  "absolute_mse_difference": 1.1102230246251565e-16
+}

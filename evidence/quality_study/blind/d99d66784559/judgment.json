@@ -1,0 +1,80 @@
+{
+  "anonymous_sha256": "3c96dc40c8fb78f2a64ef345dbf578399cba3f468e9f4ee24d6fc2fcc909cbaa",
+  "verdict": "pass",
+  "criteria": {
+    "tokens_and_head": {
+      "verdict": "pass",
+      "source_lines": [
+        63,
+        71,
+        73,
+        78,
+        80,
+        82,
+        92,
+        97,
+        107,
+        110
+      ],
+      "reason": "第107行将输入从 [B,T,N] 转置为 [B,N,T]，再由第71行的 Linear(seq_len,d_model) 对最后一维进行映射，因此每个传感器的完整历史构成一个 token，所有传感器共享同一个嵌入层。第73、110行用共享的 Linear(d_model,pred_len) 将每个 token 映射到预测窗口，并转置为 [B,S,N]。两层的参数形状均不依赖 N；第78、80、82行仅要求三维输入、指定历史长度及正的批量大小与变量数，允许 N 改变。第63行的172仅作为第92、97行训练采样辅助函数的数量上限，不将模型的传感器数固定为172。符合共享嵌入、共享预测头及可变 N 的要求。"
+    },
+    "attention": {
+      "verdict": "pass",
+      "source_lines": [
+        17,
+        19,
+        20,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        34,
+        68,
+        69
+      ],
+      "reason": "第23—25行将 [B,N,D] 的表示投影并拆分为形状 [B,H,N,d_head] 的 Q、K、V，故第26行的 scaled_dot_product_attention 在每个样本、每个注意力头内部计算传感器之间的 N×N 注意力，不混合批次。该函数默认按 1/sqrt(d_head) 缩放点积；第17行定义 d_head=D/H，第68—69行保证整除，给定配置下为2个头、每头16维。第26行明确使用 attn_mask=None 和 is_causal=False，属于无掩码注意力。第27—28行正确合并各头并进行输出投影，第34行使每个编码块都包含该注意力模块。"
+    },
+    "encoder": {
+      "verdict": "pass",
+      "source_lines": [
+        36,
+        37,
+        39,
+        41,
+        44,
+        45,
+        46,
+        47,
+        48,
+        72,
+        108,
+        109
+      ],
+      "reason": "第44行实现 u=LayerNorm(h+Dropout(Attention(h)))，第45—48行实现 LayerNorm(u+Dropout(FFN(u)))，两条子层路径都先做残差相加、再做 LayerNorm，与所给 Algorithm 1 第6、8步一致。第36、41行均使用 LayerNorm(d_model)，作用于 [B,N,D] 的隐藏特征维 D，不跨传感器或批次归一化。第37、39、45—47行构成 D→d_ff→D、带 GELU 的前馈网络，对各 token 的最后一维共享应用，满足逐 token 的 FFN 要求。第72、108—109行构造并依次执行配置指定的编码块。"
+    },
+    "forecast": {
+      "verdict": "pass",
+      "source_lines": [
+        26,
+        35,
+        38,
+        40,
+        57,
+        58,
+        99,
+        100,
+        103,
+        104,
+        105,
+        106,
+        107,
+        110,
+        111,
+        112
+      ],
+      "reason": "第99行的 forward 只接收历史输入 x，第100行验证其历史长度；第57—58行结合配置确定 T=S=96。第103—106行仅沿历史时间轴 dim=1 计算每个样本、每个传感器的均值与尺度，统计量形状为 [B,1,N]，不需要未来数据。第107、110行将历史编码后一次性投影为完整预测窗口，直接得到 [B,96,N]，没有自回归解码或未来标签输入。第111行使用 prediction*scale+mean 恢复实例归一化前的尺度，第112行返回该结果。评估模式下，第26行通过 self.training 将注意力 dropout 概率设为0；第35、38、40行的标准 nn.Dropout 随 model.eval() 关闭，因此模型具备正确的评估 dropout 行为。"
+    }
+  }
+}

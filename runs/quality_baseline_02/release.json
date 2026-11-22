@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "input_shape": [
+    1,
+    96,
+    862
+  ],
+  "output_shape": [
+    1,
+    96,
+    862
+  ],
+  "model_sha256": "ff5f0dca1a330b31adc02642702e4c4899fb7fabd482573f6920a848c7cb581d",
+  "config_sha256": "ac04467e31fc27dfc43485bc0bf6604d63d426b4f06e25c86397e2224f1361f1",
+  "spec_sha256": "b957bc72447d8b3c78fac494b9e9cb9a8c145b3c3a1aa2b3b2f2cde02eb8d2ab",
+  "card_sha256": "6ecdc56f40c9ad0a37f3bc51d70e36f70cc359df99c7aa4d51dfae34bdfa35e9"
+}

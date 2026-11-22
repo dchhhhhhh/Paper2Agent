@@ -1,0 +1,198 @@
+{
+  "variable_attention": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/1",
+      "requirements_with_page_evidence/2",
+      "requirements_with_page_evidence/3",
+      "ambiguous_or_tunable/4",
+      "ambiguous_or_tunable/5"
+    ],
+    "explanation": "The entries specify one token per variate's complete history, a shared T→D embedding, and attention scores and softmax over variates. The standard attention formula and full-variable, noncausal attention choice provide unmasked access among the variates presented to the model. The sampling entry explicitly limits training to 172 tokens and 172×172 attention maps, while full-variable evaluation uses 862 tokens and 862×862 maps.",
+    "evidence": [
+      {
+        "source": "pdf/4",
+        "quote": "Raw series of different variates are independently embedded as tokens."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "Multi-layer Perceptron works on the last dimension to embed series into variate tokens."
+      },
+      {
+        "source": "pdf/5",
+        "quote": "variate-wise correlation, and the whole score map A ∈ RN ×N exhibits the multivariate correlations\nbetween paired variate tokens."
+      },
+      {
+        "source": "pdf/9",
+        "quote": "randomly choose part of the variates in each batch and only train the model with selected variates."
+      }
+    ]
+  },
+  "encoder_head": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/4",
+      "requirements_with_page_evidence/7",
+      "requirements_with_page_evidence/9",
+      "requirements_with_page_evidence/10",
+      "ambiguous_or_tunable/2",
+      "ambiguous_or_tunable/4",
+      "ambiguous_or_tunable/8"
+    ],
+    "explanation": "The encoder blocks follow Algorithm 1: attention plus residual followed by LayerNorm, then shared per-token FFN plus residual followed by LayerNorm. The shared forecast projection directly produces all 96 future steps for each variate, and label_len does not introduce a decoder. Single-layer embedding/projection and an optional terminal LayerNorm are correctly identified as implementation choices; the frozen-width entry supplies the corresponding 96→32 and 32→96 dimensions.",
+    "evidence": [
+      {
+        "source": "pdf/3",
+        "quote": "adopts the encoder-only architecture of Trans-\nformer (Vaswani et al., 2017), including the embedding, projection, and Transformer blocks."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "6: for Hl−1 = LayerNorm\u0000Hl−1 + Self-Attn(Hl−1)\u0001 ▷ Hl−1 ∈ RN ×D"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "8: for Hl = LayerNorm\u0000Hl−1 + Feed-Forward(Hl−1)\u0001 ▷ Hl ∈ RN ×D"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "Feed-forward network is utilized for series representations, broadcasting to each token."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "Project tokens back to predicted series, ˆY ∈ RN ×S"
+      }
+    ]
+  },
+  "normalization": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/5",
+      "requirements_with_page_evidence/6",
+      "data_and_evaluation/5",
+      "data_and_evaluation/6",
+      "ambiguous_or_tunable/3",
+      "ambiguous_or_tunable/8"
+    ],
+    "explanation": "Hidden-feature LayerNorm is correctly applied independently over each variate token's D features, with D=32 for this run. Window normalization is separately described as a local option using each sample and variate's 96 historical values, with an inverse transform after prediction. Dataset scaling is a third operation with train-only fitting; variance conventions, epsilon, gradient handling and final MSE scale are explicitly identified as details the supplied paper excerpts do not fully determine.",
+    "evidence": [
+      {
+        "source": "pdf/5",
+        "quote": "the normalization is applied to the series representation of individual variate as Equation 2"
+      },
+      {
+        "source": "pdf/5",
+        "quote": "each token is previously normalized on its feature dimension"
+      },
+      {
+        "source": "pdf/4",
+        "quote": "Embedding\n!𝑥=𝑥−µσ\nTemporal LayerNorm"
+      },
+      {
+        "source": "config/d_model",
+        "quote": "32"
+      }
+    ]
+  },
+  "forecast_target": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/0",
+      "requirements_with_page_evidence/10",
+      "data_and_evaluation/0",
+      "data_and_evaluation/1",
+      "data_and_evaluation/2",
+      "data_and_evaluation/4",
+      "data_and_evaluation/5",
+      "data_and_evaluation/6"
+    ],
+    "explanation": "The specification matches Traffic, 96 historical steps, label context 48, 96 future steps, held-out test evaluation and MSE. Model input is restricted to the historical window; label context does not authorize decoder input or teacher forcing, and loss and metrics use only the future 96 steps. Chronological splits and historical/train-only normalization statistics address leakage, while the all-window, all-horizon, all-862-variate MSE reduction is explicitly declared as an evaluation choice.",
+    "evidence": [
+      {
+        "source": "task/dataset",
+        "quote": "Traffic"
+      },
+      {
+        "source": "task/objective",
+        "quote": "根据过去 96 步的多变量序列预测未来 96 步。"
+      },
+      {
+        "source": "task/lookback_len",
+        "quote": "96"
+      },
+      {
+        "source": "task/label_len",
+        "quote": "48"
+      },
+      {
+        "source": "task/pred_len",
+        "quote": "96"
+      },
+      {
+        "source": "task/evaluation_split",
+        "quote": "test"
+      },
+      {
+        "source": "task/metric",
+        "quote": "MSE"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "where the train, validation, and test datasets are strictly divided according to chronologi-\ncal order to make sure there are no data leakage issues."
+      }
+    ]
+  },
+  "local_protocol": {
+    "verdict": "pass",
+    "targets": [
+      "data_and_evaluation/3",
+      "ambiguous_or_tunable/0",
+      "ambiguous_or_tunable/1",
+      "ambiguous_or_tunable/2",
+      "ambiguous_or_tunable/5",
+      "ambiguous_or_tunable/8"
+    ],
+    "explanation": "The frozen configuration explicitly takes precedence: D=32, two heads, d_ff=64 and two encoder layers will run; the D=256 configuration remains an expressly hypothetical example. Training uses 172 sampled variates per window, while the declared evaluation scope covers all 862 variates and retains the M×96×862 MSE denominator. D=32 is correctly identified as outside the paper's width candidates; CPU execution and other local settings are distinguished from paper settings. Neither the paper's 20% example nor its optional linear-complexity attention overrides this run.",
+    "evidence": [
+      {
+        "source": "config/d_model",
+        "quote": "32"
+      },
+      {
+        "source": "config/n_heads",
+        "quote": "2"
+      },
+      {
+        "source": "config/d_ff",
+        "quote": "64"
+      },
+      {
+        "source": "config/e_layers",
+        "quote": "2"
+      },
+      {
+        "source": "config/variables_per_train_window",
+        "quote": "172"
+      },
+      {
+        "source": "config/eval_batch_size",
+        "quote": "4"
+      },
+      {
+        "source": "config/device",
+        "quote": "cpu"
+      },
+      {
+        "source": "pdf/14",
+        "quote": "The dimension of series representations D is set from {256, 512}."
+      },
+      {
+        "source": "pdf/9",
+        "quote": "Since the number of variate channels is flexible because of our inverting, the model can predict all\nthe variates for predictions."
+      },
+      {
+        "source": "pdf/17",
+        "quote": "trained on 20% variates and forecast all variates"
+      }
+    ]
+  }
+}

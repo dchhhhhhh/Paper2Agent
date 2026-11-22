@@ -1,0 +1,88 @@
+{
+  "baseline": {
+    "attempted": 2,
+    "delivered": 2,
+    "source_reviewed": 2,
+    "delivered_with_critical_error": 0,
+    "delivered_unclear": 0,
+    "trials": [
+      {
+        "run": "quality_baseline_01",
+        "completed_calls": [
+          "analysis",
+          "generation"
+        ],
+        "failed_calls": [
+          "analysis"
+        ],
+        "release": "passed",
+        "blind_id": "f5ba39a5a960",
+        "blind_verdict": "pass",
+        "source_sha256": "c9b2f010569ad8b429e43b22d069efdf6851a8d6cb1ce99671339a79e60ca264",
+        "test_mse": 0.48807391186018184,
+        "best_validation_mse": 0.4369258274857166,
+        "best_epoch": 10,
+        "test_elements": 282432576,
+        "independent_test_mse": 0.4880739118601816
+      },
+      {
+        "run": "quality_baseline_02",
+        "completed_calls": [
+          "analysis",
+          "generation"
+        ],
+        "failed_calls": [
+          "analysis"
+        ],
+        "release": "passed",
+        "blind_id": "c4d000429c36",
+        "blind_verdict": "pass",
+        "source_sha256": "ff5f0dca1a330b31adc02642702e4c4899fb7fabd482573f6920a848c7cb581d"
+      }
+    ]
+  },
+  "reviewed": {
+    "attempted": 2,
+    "delivered": 2,
+    "source_reviewed": 2,
+    "delivered_with_critical_error": 0,
+    "delivered_unclear": 0,
+    "trials": [
+      {
+        "run": "quality_reviewed_01",
+        "completed_calls": [
+          "analysis",
+          "spec_review",
+          "spec_repair",
+          "spec_review",
+          "generation"
+        ],
+        "failed_calls": [],
+        "release": "passed",
+        "blind_id": "97c8ffcf2fb1",
+        "blind_verdict": "pass",
+        "source_sha256": "f5d2560ef3ab04d6bb2705cf3f1d4950fc7b89b32b025a357c87ffde55df673d",
+        "test_mse": 0.48807391010105966,
+        "best_validation_mse": 0.4369258275504859,
+        "best_epoch": 10,
+        "test_elements": 282432576,
+        "independent_test_mse": 0.48807391010105955
+      },
+      {
+        "run": "quality_reviewed_02",
+        "completed_calls": [
+          "analysis",
+          "spec_review",
+          "spec_repair",
+          "spec_review",
+          "generation"
+        ],
+        "failed_calls": [],
+        "release": "passed",
+        "blind_id": "d99d66784559",
+        "blind_verdict": "pass",
+        "source_sha256": "be00bef625aad9eb9e0757afaaa4e5865f083ac9c86a8b1c646e72d9c577325a"
+      }
+    ]
+  }
+}

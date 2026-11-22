@@ -1,0 +1,144 @@
+{
+  "passed": true,
+  "status": "passed",
+  "checks": [
+    {
+      "criterion": "real_training_window",
+      "status": "passed",
+      "detail": "Checked forecast dimensions and finiteness on a real training window.",
+      "evidence": {
+        "status": "passed",
+        "input_shape": [
+          1,
+          96,
+          862
+        ],
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      }
+    },
+    {
+      "criterion": "output_contract",
+      "status": "passed",
+      "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+      "input_shape": [
+        3,
+        96,
+        7
+      ],
+      "expected_horizon": 96,
+      "sensor_counts": [
+        7,
+        5
+      ]
+    },
+    {
+      "criterion": "variable_attention",
+      "status": "passed",
+      "detail": "The full projection-level numerical reference matched every configured layer.",
+      "expected_layers": 2,
+      "matched_projection_inputs": 2,
+      "builtin_mha": [],
+      "sdpa_calls": [
+        {
+          "query_shape": [
+            3,
+            2,
+            7,
+            16
+          ],
+          "key_shape": [
+            3,
+            2,
+            7,
+            16
+          ],
+          "tokens_ok": true,
+          "width_ok": true,
+          "formula_ok": true,
+          "batch_heads": 6
+        },
+        {
+          "query_shape": [
+            3,
+            2,
+            7,
+            16
+          ],
+          "key_shape": [
+            3,
+            2,
+            7,
+            16
+          ],
+          "tokens_ok": true,
+          "width_ok": true,
+          "formula_ok": true,
+          "batch_heads": 6
+        }
+      ]
+    },
+    {
+      "criterion": "encoder_residual_order",
+      "status": "passed",
+      "layers": [
+        {
+          "attention": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          },
+          "ffn": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          }
+        },
+        {
+          "attention": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          },
+          "ffn": {
+            "status": "passed",
+            "detail": "LayerNorm input matches the skip tensor plus the separately traced branch output."
+          }
+        }
+      ],
+      "observed_token_norms": 4,
+      "detail": "Checked both post-residual normalization inputs in each observed block on a synthetic forward pass."
+    },
+    {
+      "criterion": "sensor_permutation",
+      "status": "passed",
+      "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+      "max_abs_error": 4.76837158203125e-07
+    },
+    {
+      "criterion": "batch_independence",
+      "status": "passed",
+      "detail": "Changing one window must leave the other samples' forecasts unchanged.",
+      "max_abs_error": 0.0
+    },
+    {
+      "criterion": "cross_sensor_effect",
+      "status": "passed",
+      "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+      "max_effect_on_other_sensors": 0.24050626158714294
+    },
+    {
+      "criterion": "history_scale_restore",
+      "status": "passed",
+      "detail": "Change each sensor's offset/scale independently and check its restoration.",
+      "max_abs_error": 1.1444091796875e-05
+    }
+  ],
+  "model_sha256": "f5d2560ef3ab04d6bb2705cf3f1d4950fc7b89b32b025a357c87ffde55df673d",
+  "seed": 7631,
+  "protocol_version": 2,
+  "input": "real training window and synthetic",
+  "torch": "2.5.1+cpu",
+  "spec_sha256": "bc54c18f60252d0fe492894c08d0e25204b3157d6d31075bdf5972b2fb7b75cc",
+  "config_sha256": "ac04467e31fc27dfc43485bc0bf6604d63d426b4f06e25c86397e2224f1361f1"
+}

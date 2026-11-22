@@ -1,0 +1,14 @@
+{
+  "stage": "analysis",
+  "attempt_id": "analysis-224944fbf468",
+  "provider": "codex-cli",
+  "requested_model": "CLI default",
+  "started_utc": "2026-11-22T05:52:50.807072+00:00",
+  "finished_utc": "2026-11-22T05:52:51.178108+00:00",
+  "status": "failed",
+  "exit_code": 1,
+  "usage": null,
+  "cost": null,
+  "billing_note": "The CLI reports tokens, not monetary charges.",
+  "error": "RuntimeError: Codex call failed: e to open database file\n2026-11-22T05:52:51.057951Z  WARN codex_rollout::state_db: failed to initialize state runtime: failed to initialize state runtime at C:\\Users\\杨笑涵\\.codex: failed to open state DB at C:\\Users\\杨笑涵\\.codex\\state_5.sqlite: error returned from database: (code: 14) unable to open database file: error returned from database: (code: 14) unable to open database file: (code: 14) unable to open database file\nError: failed to initialize in-process app-server client: 拒绝访问。 (os error 5)\n"
+}

@@ -1,0 +1,43 @@
+Return your answer directly. Use only the material in this request. Do not use tools, read local files, browse, or execute commands.
+
+Implement the forecasting model described by this paper analysis. Return one complete Python module under the python field. Export Forecaster(config: dict) as a torch.nn.Module, forward(x) maps [B,seq_len,N] to [B,pred_len,N] for variable N, including training with subsets. Use real multi-head attention and torch.nn.functional.scaled_dot_product_attention for an economical exact CPU implementation. Honor d_model,n_heads,e_layers,d_ff,dropout. Use only torch and built-in Python, no file or network I/O, no training script, external models, known performance values or test-data access. Implement paper mechanisms, document dimensions, and use dropout only during training.
+Spec:
+{
+  "method": "iTransformer",
+  "requirements_with_page_evidence": [
+    "任务与张量定义：论文定义历史输入 X∈R^{T×N}、未来输出 Y∈R^{S×N}，T 是历史长度，N 是变量数，S 是预测长度。本任务取 T=96、S=96，Traffic 的 N=862；加入批次轴后，输入为 [B,96,862]，目标及预测为 [B,96,862]。依据：PDF 第3页第3节的任务定义，第13页 A.1 的历史长度设置，第14页表4的 Traffic 变量数。",
+    "变量轴与倒置操作：先将输入从 [B,96,862] 转置为 [B,862,96]，将每个变量完整的96步历史作为一个 token 的输入，再映射为 [B,862,D]。因此 token 轴是862个变量，最后一轴是 D 维特征；不能将96个时间点作为这里的注意力 token。依据：PDF 第4页式(1)规定 H∈R^{N×D}，第13页算法1第1—3行明确转置并沿最后一维执行 MLP。",
+    "嵌入层：对每个变量的历史序列应用相同的 Embedding:R^96→R^D；该层负责把历史时间顺序编码到特征中。论文将 Embedding 描述为 MLP，但选页没有确定其层数和内部宽度。无需加入原始 Transformer 的位置编码，第4页明确说明序列顺序已隐含在前馈网络的神经元排列中。依据：PDF 第4页式(1)及其后说明，第13页算法1第2—3行。",
+    "注意力：由变量表示 H 线性生成 Q、K、V，以 QKᵀ/√d_k 计算变量之间的分数，并经 Softmax 后聚合 V。单个注意力头的分数矩阵为 [B,862,862]，交互发生在变量轴；多头实现时，每个头仍沿这个变量轴计算注意力。依据：PDF 第4页图4(b)，第5页 Self-attention 段明确给出 Q、K、V∈R^{N×d_k} 和 A∈R^{N×N}。",
+    "编码层：采用 encoder-only 架构，堆叠 L 个包含自注意力、FFN 和 LayerNorm 的块。每个块保持 [B,862,D] 的表示形状，最后直接投影得到未来序列。依据：PDF 第3页第3.1节，第4页式(1)，第13页算法1第4—12行。",
+    "残差与归一化顺序：按算法1实现两个子层，U=LayerNorm(H+SelfAttn(H))，H_next=LayerNorm(U+FFN(U))。注意力和 FFN 各有一次残差相加，相加后执行 LayerNorm，因此算法明确的是 post-norm 顺序。依据：PDF 第13页算法1第6、8行；第4页图4提供对应结构示意。",
+    "LayerNorm 的归一化轴：对每个样本中的每个变量 token 独立计算其 D 维特征的均值与方差，即归一化 [B,N,D] 的最后一维；不跨 N 个变量联合计算统计量。可写为 LN(h_n)=(h_n−Mean_D(h_n))/sqrt(Var_D(h_n))，数值稳定项和仿射参数另行配置。依据：PDF 第5页式(2)及 Layer normalization 段。该操作控制特征均值和方差，并不在数学上保证特征服从高斯分布。",
+    "FFN 与激活：FFN 独立作用于每个变量 token，所有 token 共享参数；可用 D→d_ff→D 的逐 token 前馈网络实现，隐藏层包含非线性激活。FFN 操作的是变量的序列表示，不将不同变量拼接后送入全连接层。第4页图4(c)标有 Dense、Act & Drop、Dense，第5页解释了非线性连接及共享 FFN 的作用；选页没有指定 Act 必须是哪一种函数，也没有给出 d_ff 或 dropout 概率。",
+    "输入序列归一化与尺度恢复：第4页图4(a)另外画出了输入的 (x−μ)/σ 变换以及输出侧的尺度恢复，这与编码块内沿 D 轴的 LayerNorm 是两项不同操作。实现这一流程时，应保留输入侧统计量，并在预测投影后用对应统计量恢复尺度；μ、σ 的具体估计方式需要单独声明，因为第13页算法1没有展开这些步骤。依据：PDF 第4页图4(a)、第5页式(2)、第13页算法1。",
+    "预测头：对最终每个变量表示 h_n^L 应用共享的 Projection:R^D→R^96，先得到 [B,862,96]，再转置为 [B,96,862]，一次输出全部96个未来时间点。第4页式(1)和第13页算法1第11行将该映射写为 MLP，第4页正文同时强调由线性层承担预测生成；因此可确定映射方向和直接多步输出方式，但不能仅据选页确定预测头的精确层数或隐藏激活。依据：PDF 第4页，第13页算法1第11—13行。"
+  ],
+  "data_and_evaluation": [
+    "论文数据定义：Traffic 是旧金山湾区高速公路862个传感器的道路占有率数据，按小时采样，采集时间为2015年1月至2016年12月。因而本任务的96步历史和96步未来分别对应96小时。依据：PDF 第13页 A.1。",
+    "论文预测设置与本任务选择：论文对 Traffic 固定历史长度为96，在 {96,192,336,720} 中设置预测长度；本任务选择其中的96步预测，并要求在 test split 上报告 MSE。lookback_len=96、pred_len=96 同时符合论文实验范围与用户指定目标；evaluation_split=test 和 metric=MSE 是本次任务明确给定的要求。依据：PDF 第13页 A.1、第14页表4及用户任务描述。",
+    "论文数据划分：训练、验证、测试集严格按时间先后划分，处理与划分协议沿用 TimesNet。第14页表4将 Traffic 的 Dataset Size 列为 (12185,1757,3509)，表头说明这些是对应划分的时间点数量。选页没有展开原始文件版本、具体索引边界、滑窗数量计算或边界历史上下文的处理方式；不能直接将这三个数字当成已确认的训练窗口数。依据：PDF 第13页 A.1、第14页表4。",
+    "论文训练设置：使用 PyTorch、单张 NVIDIA P100 16GB GPU、ADAM 优化器和 L2 损失；batch size=32，训练10个 epoch。初始学习率从 {0.001,0.0005,0.0001} 中选择，编码块数 L∈{2,3,4}，表示维度 D∈{256,512}。这些是论文报告的固定设置及候选范围，选页没有给出 Traffic 96→96 对应的唯一组合。依据：PDF 第14页 A.2。",
+    "本任务的可实施评估定义：对测试窗口的全部96个预测步和862个变量计算总体均方误差，即 MSE=Σ_{i=1..M}Σ_{s=1..96}Σ_{n=1..862}(ŷ_{i,s,n}−y_{i,s,n})²/(M×96×862)，M 为实际测试窗口数。此处明确的是本次运行应采用并记录的聚合方式；用户指定了 MSE，提供的选页未展开其精确聚合公式。实现时累计平方误差总和与元素总数，可避免最后一个小批次大小不同造成的平均偏差。",
+    "数据处理与模型选择的运行约束：若采用数据集级标准化，应仅用训练划分拟合统计量，再应用于验证集和测试集；若采用输入窗口级归一化，统计量只能由该窗口的历史96步计算。超参数和 checkpoint 可通过验证集选择，测试集用于最终评分。这些是本次实施应明确的流程选择；选页只声明了时间顺序划分和沿用 TimesNet，未给出这些操作的完整细节。依据边界：PDF 第13页 A.1。",
+    "论文参考结果：PDF 第14页表5报告 Traffic、预测长度96的 MSE 为 0.395±0.001，MAE 为 0.268±0.001，表格与正文说明结果来自五个随机种子并报告标准差。该数值是论文参考结果；本请求没有提供实际运行结果，也不能将单次实验的 MSE 直接视为完成了该五种子结果的复现。"
+  ],
+  "ambiguous_or_tunable": [
+    "label_len=48 的地位：这是用户给出的运行参数。论文的模型接口使用历史长度 T 和预测长度 S，encoder-only 算法中没有 decoder，也没有 label_len 的定义。若数据加载接口要求该字段，可将其作为标签上下文长度保留；训练和评估的目标仍应明确取未来96步，不能据此增加48步 decoder 输入或改变模型预测头。依据：PDF 第3—4页，第13页算法1。",
+    "具体超参数组合未确定：L、D 和初始学习率的论文候选范围已给出，但 Traffic 96→96 的最终取值没有出现在选页中。运行时需要确定并记录具体值；范围内的某个取值不能被称为已由选页证实的 Traffic 官方配置。依据：PDF 第14页 A.2。",
+    "注意力细节未确定：注意力头数、每头维度的具体值、投影偏置、attention dropout 及 mask 配置均未在选页中明确。完整变量间注意力可作为基线运行选择；若实现多头注意力，需要满足表示维度与头数的兼容约束。不能把时间自回归因果掩码直接套到变量索引上。依据：PDF 第4—5页和第13页算法1明确了变量间交互，但没有列出这些配置。",
+    "激活与前馈宽度未确定：图4只标明 Act & Drop，并未指定 GELU、ReLU 或其他激活，也未指定 d_ff、dropout 概率及精确放置位置。任何具体选择都应标为运行选择。注意力中的 Softmax 与 FFN 隐藏层的激活函数属于不同操作，不能据第5页的 Softmax 描述推断 FFN 激活。依据：PDF 第4页图4(c)、第5页。",
+    "嵌入层与预测头深度未确定：选页使用 MLP 描述 Embedding 和 Projection，同时强调线性层的预测能力，但没有给出逐层参数表。使用单层 Linear(96,D) 和 Linear(D,96) 是一种简洁的实现选择；增加隐藏层或激活也需要另行说明，不能把任一方案宣称为选页唯一确定的结构。选页同样没有要求预测输出经过 sigmoid 或其他范围约束。依据：PDF 第4页式(1)及正文、第13页算法1。",
+    "窗口归一化的具体实现需声明：与图4相符的一种实现是按每个样本、每个变量沿历史时间轴计算 μ_{b,n}=mean_t(X_{b,t,n})、σ_{b,n}=sqrt(var_t(X_{b,t,n})+ε)，再以 Ŷ_{b,s,n}=Ẑ_{b,s,n}σ_{b,n}+μ_{b,n} 恢复预测尺度。这里时间统计轴的具体实现、方差分母、ε、是否停止统计量梯度及是否增加可学习仿射参数，均不能从选页完全确定；应与编码块中明确沿 D 轴的 LayerNorm 分别配置。依据：PDF 第4页图4、第5页式(2)。",
+    "附加归一化和时间特征未确定：第13页算法1明确规定每个块中的两次 post-norm，但未单独列出全部编码块之后的额外 LayerNorm。第4页明确无需原始位置编码；选页没有要求加入时间戳或日历特征 token。是否增加这些模块属于需要披露的实现选择。",
+    "指标尺度与滑窗协议未确定：选页没有给出数据集级标准化的逐变量规则，也没有明确表5的 MSE 在原始物理单位还是某种标准化尺度上计算；滑窗步长、测试边界上下文和末批处理同样没有展开。运行必须记录这些细节，并保证预测与标签在同一尺度上计算误差。窗口级反归一化若恢复的是已经标准化的输入尺度，并不等同于恢复原始道路占有率单位。",
+    "训练控制细节未确定：随机种子具体数值、学习率调度、权重衰减、ADAM 的其他参数、梯度裁剪、早停和 checkpoint 选择规则均未在选页中给出。论文报告的 L2 loss 是损失类型，不能据此推断使用了非零 L2 权重正则。CPU 运行、改变 batch size、改变训练轮数或只运行一个种子，都应作为本次运行与论文设置的差异记录。依据：PDF 第14页 A.2。",
+    "高维变量的效率策略为可选变体：第9页介绍每批随机抽取部分变量训练、预测时使用全部变量的策略，第17页进一步提到20%变量训练，以及线性复杂度注意力。基础实现可以使用全部862个变量及标准注意力；如果启用变量抽样或替换注意力，需要单独记录抽样比例、实现及训练协议，选页没有证明这些策略是表5中 Traffic 96步结果的默认配置。依据：PDF 第9页图8及正文、第17页。"
+  ]
+}
+
+Frozen CPU experiment configuration:
+{"seq_len": 96, "label_len": 48, "pred_len": 96, "d_model": 32, "n_heads": 2, "e_layers": 2, "d_ff": 64, "dropout": 0.1, "batch_size": 32, "eval_batch_size": 4, "epochs": 10, "lr": 0.001, "lr_schedule": "constant", "seed": 2026, "threads": 4, "variables_per_train_window": 172, "device": "cpu", "paper_pages": [1, 3, 4, 5, 9, 13, 14, 17]}

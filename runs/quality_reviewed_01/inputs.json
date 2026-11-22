@@ -1,0 +1,7 @@
+{
+  "task_sha256": "6ecdc56f40c9ad0a37f3bc51d70e36f70cc359df99c7aa4d51dfae34bdfa35e9",
+  "paper_sha256": "83e889795af52c672090255493266e3ea93e7b2a32c528f58074f2f9f757ffc5",
+  "config_sha256": "ac04467e31fc27dfc43485bc0bf6604d63d426b4f06e25c86397e2224f1361f1",
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "protocol": "reviewed-v1"
+}

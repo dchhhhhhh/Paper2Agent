@@ -1,0 +1,6 @@
+{"time": "2026-11-22T05:52:50.794995+00:00", "stage": "paper_analysis_requested"}
+{"time": "2026-11-22T05:52:51.181558+00:00", "stage": "failed", "request": "generate", "error": "Codex call failed: e to open database file\n2026-11-22T05:52:51.057951Z  WARN codex_rollout::state_db: failed to initialize state runtime: failed to initialize state runtime at C:\\Users\\杨笑涵\\.codex: failed to open state DB at C:\\Users\\杨笑涵\\.codex\\state_5.sqlite: error returned from database: (code: 14) unable to open database file: error returned from database: (code: 14) unable to open database file: (code: 14) unable to open database file\nError: failed to initialize in-process app-server client: 拒绝访问。 (os error 5)\n"}
+{"time": "2026-11-22T05:53:30.463444+00:00", "stage": "paper_analysis_requested"}
+{"time": "2026-11-22T05:55:43.644466+00:00", "stage": "paper_analysis_saved", "spec_sha256": "b957bc72447d8b3c78fac494b9e9cb9a8c145b3c3a1aa2b3b2f2cde02eb8d2ab"}
+{"time": "2026-11-22T05:55:43.646704+00:00", "stage": "code_generation_requested"}
+{"time": "2026-11-22T05:57:50.235417+00:00", "stage": "generated", "model_sha256": "ff5f0dca1a330b31adc02642702e4c4899fb7fabd482573f6920a848c7cb581d", "spec_sha256": "b957bc72447d8b3c78fac494b9e9cb9a8c145b3c3a1aa2b3b2f2cde02eb8d2ab"}

@@ -1,0 +1,208 @@
+{
+  "variable_attention": {
+    "verdict": "revise",
+    "targets": [
+      "ambiguous_or_tunable/2"
+    ],
+    "explanation": "将跨变量无掩码访问明确为本次运行约定：每个查询可以访问当前输入中的全部变量键，沿键维做 softmax，不按变量索引添加因果掩码。当前文字仅把无掩码列为可选项，尚未落实本项要求。训练采用变量子集时，全访问的范围是该子集。论文支持变量 token 之间的相关性注意力，但没有显式给出 mask 参数，因此应把这个具体参数声明为运行选择。",
+    "evidence": [
+      {
+        "source": "pdf/4",
+        "quote": "Raw series of different variates are independently embedded as tokens."
+      },
+      {
+        "source": "pdf/5",
+        "quote": "the whole score map A ∈ RN ×N exhibits the multivariate correlations\nbetween paired variate tokens."
+      },
+      {
+        "source": "pdf/4",
+        "quote": "the token number can vary from training to inference, and the model is allowed to be trained\non arbitrary numbers of variates."
+      }
+    ]
+  },
+  "encoder_head": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/3",
+      "requirements_with_page_evidence/4",
+      "requirements_with_page_evidence/7",
+      "requirements_with_page_evidence/9"
+    ],
+    "explanation": "现有条目正确规定仅编码器结构、变量自注意力与逐 token 共享 FFN，以及两次残差相加后再做 LayerNorm 的顺序。预测头将每个最终变量表示直接映射为未来96步，再转置回时间在前的输出。将单个 Linear 预测头作为可实施选择，并保留论文未唯一确定头部深度的边界，是有依据的。",
+    "evidence": [
+      {
+        "source": "pdf/3",
+        "quote": "Our proposed iTransformer illustrated in Figure 4 adopts the encoder-only architecture of Trans-\nformer (Vaswani et al., 2017), including the embedding, projection, and Transformer blocks."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "6: for Hl−1 = LayerNorm\u0000Hl−1 + Self-Attn(Hl−1)\u0001 ▷ Hl−1 ∈ RN ×D\n7: for ▷ Feed-forward network is utilized for series representations, broadcasting to each token.\n8: for Hl = LayerNorm\u0000Hl−1 + Feed-Forward(Hl−1)\u0001 ▷ Hl ∈ RN ×D"
+      },
+      {
+        "source": "pdf/4",
+        "quote": "the task to generate the predicted series is essentially delivered to linear layers"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "11: ˆY = MLP(HL) ▷ Project tokens back to predicted series, ˆY ∈ RN ×S\n12: ˆY = ˆY.transpose ▷ ˆY ∈ RS×N"
+      }
+    ]
+  },
+  "normalization": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/5",
+      "requirements_with_page_evidence/6",
+      "data_and_evaluation/5",
+      "ambiguous_or_tunable/3"
+    ],
+    "explanation": "现有条目区分了三种操作：隐藏表示的 LayerNorm 沿每个变量 token 的 D 维进行，这是论文明确支持的轴；输入窗口归一化沿每个样本、每个变量的历史时间轴计算统计量，并在预测后恢复，被正确标为实现解释；数据集级缩放则单独讨论训练段拟合与最终 MSE 尺度。窗口统计细节、epsilon、仿射参数、梯度处理及数据集缩放尺度没有被冒称为论文已确定值，可以保留为运行时需记录的选择。",
+    "evidence": [
+      {
+        "source": "pdf/5",
+        "quote": "the normalization is applied to the series representation of individual variate as Equation 2"
+      },
+      {
+        "source": "pdf/5",
+        "quote": "each token is previously normalized on its feature dimension"
+      },
+      {
+        "source": "pdf/4",
+        "quote": "Embedding\n!𝑥=𝑥−µσ\nTemporal LayerNorm"
+      },
+      {
+        "source": "pdf/4",
+        "quote": "LayerNorm\n+\nµσ +\nDense"
+      }
+    ]
+  },
+  "forecast_target": {
+    "verdict": "pass",
+    "targets": [
+      "requirements_with_page_evidence/0",
+      "requirements_with_page_evidence/10",
+      "data_and_evaluation/0",
+      "data_and_evaluation/1",
+      "data_and_evaluation/2",
+      "data_and_evaluation/4",
+      "ambiguous_or_tunable/4"
+    ],
+    "explanation": "现有规格与任务一致：Traffic、历史96步、label_len=48、未来96步、test 上报告 MSE。48步标签上下文被限定为外部接口参数，没有据此引入解码器、教师强制或未来真实值输入；损失与计分仅覆盖未来96步。时间顺序切分、预测目标全部落在所属切分，以及按全部测试元素累计平方误差的约定也已写明。精确切分索引和历史上下文规则被保留为待落实的本地协议，没有被冒称为已知论文细节。",
+    "evidence": [
+      {
+        "source": "task/dataset",
+        "quote": "Traffic"
+      },
+      {
+        "source": "task/objective",
+        "quote": "根据过去 96 步的多变量序列预测未来 96 步。"
+      },
+      {
+        "source": "task/lookback_len",
+        "quote": "96"
+      },
+      {
+        "source": "task/label_len",
+        "quote": "48"
+      },
+      {
+        "source": "task/pred_len",
+        "quote": "96"
+      },
+      {
+        "source": "task/metric",
+        "quote": "MSE"
+      },
+      {
+        "source": "task/evaluation_split",
+        "quote": "test"
+      },
+      {
+        "source": "pdf/13",
+        "quote": "Require: Input lookback time series X ∈ RT ×N ; input Length T ; predicted length S; variates\nnumber N; token dimension D; iTransformer block number L."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "where the train, validation, and test datasets are strictly divided according to chronologi-\ncal order to make sure there are no data leakage issues."
+      }
+    ]
+  },
+  "local_protocol": {
+    "verdict": "revise",
+    "targets": [
+      "data_and_evaluation/+",
+      "ambiguous_or_tunable/6"
+    ],
+    "explanation": "在 data_and_evaluation/+ 追加本次实际执行的冻结配置：D=32、2个头、L=2、d_ff=64、dropout=0.1，训练10个epoch，学习率0.001且恒定，seed=2026、4线程、CPU，训练与评估 batch 分别为32和4。明确 D=32 位于论文宽度候选集之外，是本地配置；已经标为假设的512维等示例本身无需判为冲突。修改 ambiguous_or_tunable/6，明确本次每个训练窗口使用172个变量，具体随机采样机制另记为本地选择；训练 token 数为172，既有862变量张量描述对应全变量数据接口及评估。验证和测试使用全部862个变量，test MSE 保持覆盖全部测试窗口、未来96步和全部变量；eval_batch_size=4表示窗口批量，不是评估变量数。",
+    "evidence": [
+      {
+        "source": "config/d_model",
+        "quote": "32"
+      },
+      {
+        "source": "config/n_heads",
+        "quote": "2"
+      },
+      {
+        "source": "config/e_layers",
+        "quote": "2"
+      },
+      {
+        "source": "config/d_ff",
+        "quote": "64"
+      },
+      {
+        "source": "config/dropout",
+        "quote": "0.1"
+      },
+      {
+        "source": "config/batch_size",
+        "quote": "32"
+      },
+      {
+        "source": "config/eval_batch_size",
+        "quote": "4"
+      },
+      {
+        "source": "config/epochs",
+        "quote": "10"
+      },
+      {
+        "source": "config/lr",
+        "quote": "0.001"
+      },
+      {
+        "source": "config/lr_schedule",
+        "quote": "constant"
+      },
+      {
+        "source": "config/seed",
+        "quote": "2026"
+      },
+      {
+        "source": "config/threads",
+        "quote": "4"
+      },
+      {
+        "source": "config/variables_per_train_window",
+        "quote": "172"
+      },
+      {
+        "source": "config/device",
+        "quote": "cpu"
+      },
+      {
+        "source": "pdf/14",
+        "quote": "The dimension of series representations D is set from {256, 512}."
+      },
+      {
+        "source": "pdf/9",
+        "quote": "randomly choose part of the variates in each batch and only train the model with selected variates.\nSince the number of variate channels is flexible because of our inverting, the model can predict all\nthe variates for predictions."
+      },
+      {
+        "source": "pdf/13",
+        "quote": "measured by 862 sensors of San Francisco Bay area freeways from January 2015 to December 2016."
+      }
+    ]
+  }
+}
