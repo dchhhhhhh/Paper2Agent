@@ -79,9 +79,9 @@ def audit_generation(out, metrics):
     digest = file_digest(model_path)
     require(digest == metrics["model_sha256"], "Generated model.py digest differs from training.")
     model_text = model_path.read_text(encoding="utf-8")
-    for record_path in sorted(calls.glob("generation-*/call.json")):
+    for record_path in sorted([*calls.glob("generation-*/call.json"), *calls.glob("repair-*/call.json")]):
         record = json.loads(record_path.read_text(encoding="utf-8"))
-        if record.get("stage") != "generation" or record.get("status") != "completed":
+        if record.get("stage") not in {"generation", "repair"} or record.get("status") != "completed":
             continue
         answer = record_path.with_name("response.txt")
         generated = json.loads(answer.read_text(encoding="utf-8"))["python"]

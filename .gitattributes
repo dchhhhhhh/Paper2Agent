@@ -5,3 +5,11 @@
 /runs/**/model.py -text
 /runs/**/paper_spec.json -text
 /runs/**/config.json -text
+# Keep the exact bytes used for study hashes and archived review evidence.
+/compare_method_checks.py -text
+/method_checks.py -text
+/residual_check.py -text
+/experiment_runner.py -text
+runs/quality_*/** -text
+evidence/quality_study/blind/** -text
+evidence/quality_study/axis_repair/** -text

@@ -1,0 +1,940 @@
+{
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "torch": "2.5.1+cpu",
+  "fixture_source_sha256": "314eeaac68e789bd65b2344036f22153df36798c8340832940c50ea2708dff4a",
+  "configuration_sha256": "ac04467e31fc27dfc43485bc0bf6604d63d426b4f06e25c86397e2224f1361f1",
+  "traffic_sha256": "cb06463d56fa17d87f47027cd9389ceae82a69eddee51cdb61480e120dab0b16",
+  "gate_sha256": "65238e2ab2bd5300e0f948b1c05def03f49dd20a3c74b56e21396e35b6a2ad90",
+  "comparison_sha256": "ab0625aabaab15c3ac120ca6dc0d0dd7a0fe1046731eed482c66d5fa850f0395",
+  "seed_for_initial_weights": 2026,
+  "fixture_control_seed": 4309,
+  "real_smoke_input_shape": [
+    1,
+    96,
+    862
+  ],
+  "baseline": "Archived fit() pre-training smoke: first real training window, shape, floating dtype, finite.",
+  "strengthened": "Same smoke gate, then deterministic generated-model method checks.",
+  "scope": "Constructed source variants of one architecture, labeled for the selected requirements. Two attention faults were known from the earlier probe. Controls are numerically checked on two synthetic inputs with equal initial weights. No training, validation or test scoring.",
+  "summary": {
+    "baseline": {
+      "correct_accepted": 3,
+      "false_rejects": 0,
+      "correct_inconclusive": 0,
+      "incorrect_rejected": 2,
+      "false_accepts": 7,
+      "incorrect_inconclusive": 0
+    },
+    "strengthened": {
+      "correct_accepted": 3,
+      "false_rejects": 0,
+      "correct_inconclusive": 0,
+      "incorrect_rejected": 7,
+      "false_accepts": 1,
+      "incorrect_inconclusive": 1
+    }
+  },
+  "cases": [
+    {
+      "case": "archived_generation",
+      "label": "correct",
+      "intervention": "Unchanged archived generator output; positive control for the selected mechanisms.",
+      "variant_sha256_lf": "169da95ae0a08edac44be67f5852dd4b66e5067bd7c64608568de77886c31f54",
+      "same_as_archived_on_control_inputs": [
+        true,
+        true
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": true,
+        "status": "passed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "passed",
+            "detail": "The numerical reference matched for the configured attention depth and variable count.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 2,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              },
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 4.76837158203125e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.24050626158714294
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.0967254638671875e-05
+          }
+        ],
+        "model_sha256": "169da95ae0a08edac44be67f5852dd4b66e5067bd7c64608568de77886c31f54",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "explicit_attention",
+      "label": "correct",
+      "intervention": "Write scaled softmax attention with tensor operations in place of SDPA.",
+      "variant_sha256_lf": "0832f0fe0bd42f6757800622ebd6b2d0fa85a7d12bc739f9829b4bbff07de131",
+      "same_as_archived_on_control_inputs": [
+        true,
+        true
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": true,
+        "status": "passed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "passed",
+            "detail": "The numerical reference matched for the configured attention depth and variable count.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 2,
+            "sdpa_calls": []
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 5.960464477539062e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.24050620198249817
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.1086463928222656e-05
+          }
+        ],
+        "model_sha256": "0832f0fe0bd42f6757800622ebd6b2d0fa85a7d12bc739f9829b4bbff07de131",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "renamed_projections",
+      "label": "correct",
+      "intervention": "Rename both attention projections; preserve weights and operations.",
+      "variant_sha256_lf": "a04211db314fd6ef37a34e8066b8b790cc8cdc18c16a5f2b10ee4e701da52e4b",
+      "same_as_archived_on_control_inputs": [
+        true,
+        true
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": true,
+        "status": "passed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "passed",
+            "detail": "The numerical reference matched for the configured attention depth and variable count.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 2,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              },
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 4.76837158203125e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.24050626158714294
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.0967254638671875e-05
+          }
+        ],
+        "model_sha256": "a04211db314fd6ef37a34e8066b8b790cc8cdc18c16a5f2b10ee4e701da52e4b",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "no_variable_mixing",
+      "label": "incorrect",
+      "intervention": "Prior probe: pass values through and ignore query/key.",
+      "variant_sha256_lf": "1017bbd7003d4404fb38e6ba8b83b7249f4a7972cec61f52b235795913798670",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": false,
+        "status": "failed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "inconclusive",
+            "detail": "Insufficient independent numerical evidence for every configured layer; review this implementation.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 0,
+            "sdpa_calls": []
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 0.0
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "failed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.0
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.239776611328125e-05
+          }
+        ],
+        "model_sha256": "1017bbd7003d4404fb38e6ba8b83b7249f4a7972cec61f52b235795913798670",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "attend_over_heads",
+      "label": "incorrect",
+      "intervention": "Prior probe: swap head and variable axes around SDPA.",
+      "variant_sha256_lf": "4159f5cf0fa877876302dc85cfc26f9f9fb193abe23d92db5aa3e0e0c50ccd6c",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": false,
+        "status": "failed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "failed",
+            "detail": "Observed an attention axis or output inconsistent with unmasked scaled attention over variables.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 0,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  7,
+                  2,
+                  16
+                ],
+                "tokens_ok": false,
+                "width_ok": true,
+                "formula_ok": false,
+                "batch_heads": 21
+              },
+              {
+                "query_shape": [
+                  3,
+                  7,
+                  2,
+                  16
+                ],
+                "tokens_ok": false,
+                "width_ok": true,
+                "formula_ok": false,
+                "batch_heads": 21
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 0.0
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "failed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.0
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.049041748046875e-05
+          }
+        ],
+        "model_sha256": "4159f5cf0fa877876302dc85cfc26f9f9fb193abe23d92db5aa3e0e0c50ccd6c",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "causal_sensor_mask",
+      "label": "incorrect",
+      "intervention": "Apply a triangular mask following sensor order.",
+      "variant_sha256_lf": "90a8b019b8968a510cbaf87b653d2e36fb1683e0e53b818c622dad9cca5cc387",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": false,
+        "status": "failed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "failed",
+            "detail": "Observed an attention axis or output inconsistent with unmasked scaled attention over variables.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 0,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": false,
+                "batch_heads": 6
+              },
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": false,
+                "batch_heads": 6
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "failed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 0.7318347692489624
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.7564634084701538
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.1444091796875e-05
+          }
+        ],
+        "model_sha256": "90a8b019b8968a510cbaf87b653d2e36fb1683e0e53b818c622dad9cca5cc387",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "unscaled_dot_product",
+      "label": "incorrect",
+      "intervention": "Remove division by sqrt(head dimension).",
+      "variant_sha256_lf": "2ae9f1203244820dd87c4498000316edcb4dd5db011ce5c5143a0a9ad4e0c479",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": false,
+        "status": "failed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "failed",
+            "detail": "Observed an attention axis or output inconsistent with unmasked scaled attention over variables.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 0,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": false,
+                "batch_heads": 6
+              },
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": false,
+                "batch_heads": 6
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 4.76837158203125e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.37707918882369995
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.239776611328125e-05
+          }
+        ],
+        "model_sha256": "2ae9f1203244820dd87c4498000316edcb4dd5db011ce5c5143a0a9ad4e0c479",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "uniform_attention",
+      "label": "incorrect",
+      "intervention": "Average variable values independently of query and key.",
+      "variant_sha256_lf": "f2c268006c7c606a40697f81e982c4144f2d547420cb72d1d5b88846acc2e48b",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": false,
+        "status": "inconclusive",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "inconclusive",
+            "detail": "Insufficient independent numerical evidence for every configured layer; review this implementation.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 0,
+            "sdpa_calls": []
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 4.76837158203125e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.20753052830696106
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.1563301086425781e-05
+          }
+        ],
+        "model_sha256": "f2c268006c7c606a40697f81e982c4144f2d547420cb72d1d5b88846acc2e48b",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "missing_window_mean",
+      "label": "incorrect",
+      "intervention": "Omit the historical mean when restoring the forecast scale.",
+      "variant_sha256_lf": "8f579ac8c38fe918de2cdc183f8b7f460dec50d4571454198b305f82b9873559",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": false,
+        "status": "failed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "passed",
+            "detail": "The numerical reference matched for the configured attention depth and variable count.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 2,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              },
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 4.76837158203125e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.24050623178482056
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "failed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 8.999527931213379
+          }
+        ],
+        "model_sha256": "8f579ac8c38fe918de2cdc183f8b7f460dec50d4571454198b305f82b9873559",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "missing_ffn_residual",
+      "label": "incorrect",
+      "intervention": "Drop the feedforward residual required by Algorithm 1.",
+      "variant_sha256_lf": "4bf2323aae6cb748c1bf3636f8038d80d1e8aefea2fb7db1a72b09b952d5f20a",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "passed",
+        "output_shape": [
+          1,
+          96,
+          862
+        ]
+      },
+      "strengthened": {
+        "passed": true,
+        "status": "passed",
+        "checks": [
+          {
+            "criterion": "output_contract",
+            "status": "passed",
+            "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+            "input_shape": [
+              3,
+              96,
+              7
+            ],
+            "expected_horizon": 96,
+            "sensor_counts": [
+              7,
+              5
+            ]
+          },
+          {
+            "criterion": "variable_attention",
+            "status": "passed",
+            "detail": "The numerical reference matched for the configured attention depth and variable count.",
+            "expected_layers": 2,
+            "matched_projection_inputs": 2,
+            "sdpa_calls": [
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              },
+              {
+                "query_shape": [
+                  3,
+                  2,
+                  7,
+                  16
+                ],
+                "tokens_ok": true,
+                "width_ok": true,
+                "formula_ok": true,
+                "batch_heads": 6
+              }
+            ]
+          },
+          {
+            "criterion": "sensor_permutation",
+            "status": "passed",
+            "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+            "max_abs_error": 6.556510925292969e-07
+          },
+          {
+            "criterion": "cross_sensor_effect",
+            "status": "passed",
+            "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+            "max_effect_on_other_sensors": 0.2316490262746811
+          },
+          {
+            "criterion": "history_scale_restore",
+            "status": "passed",
+            "detail": "Run convention: independently change each sensor's offset/scale and check its restoration.",
+            "max_abs_error": 1.0013580322265625e-05
+          }
+        ],
+        "model_sha256": "4bf2323aae6cb748c1bf3636f8038d80d1e8aefea2fb7db1a72b09b952d5f20a",
+        "seed": 7631,
+        "input": "synthetic",
+        "torch": "2.5.1+cpu"
+      }
+    },
+    {
+      "case": "truncate_forecast",
+      "label": "incorrect",
+      "intervention": "Return one fewer forecast step than requested.",
+      "variant_sha256_lf": "b6e9c8a467b6ba26ea8d77adc37156e4ad6a10be9e7b4698ae3f3a271a9d4ae0",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "failed",
+        "reason": "Forecast shape/type (1, 95, 862) torch.float32; expected (1, 96, 862)."
+      },
+      "strengthened": {
+        "status": "failed",
+        "reason": "Failed the common real-data smoke gate."
+      }
+    },
+    {
+      "case": "nonfinite_forecast",
+      "label": "incorrect",
+      "intervention": "Return NaN forecasts of the expected shape.",
+      "variant_sha256_lf": "33716535d194896f343a4e9ce12c48222e26736ca9d34c32faefb3e3d6137903",
+      "same_as_archived_on_control_inputs": [
+        false,
+        false
+      ],
+      "baseline": {
+        "status": "failed",
+        "reason": "Nonfinite forecast"
+      },
+      "strengthened": {
+        "status": "failed",
+        "reason": "Failed the common real-data smoke gate."
+      }
+    }
+  ]
+}

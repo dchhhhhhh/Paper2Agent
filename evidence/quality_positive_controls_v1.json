@@ -1,0 +1,364 @@
+{
+  "task_id": "reproducebench-itransformer-traffic-96",
+  "torch": "2.5.1+cpu",
+  "fixture_source_sha256": "314eeaac68e789bd65b2344036f22153df36798c8340832940c50ea2708dff4a",
+  "configuration_sha256": "ac04467e31fc27dfc43485bc0bf6604d63d426b4f06e25c86397e2224f1361f1",
+  "traffic_sha256": "cb06463d56fa17d87f47027cd9389ceae82a69eddee51cdb61480e120dab0b16",
+  "code_sha256": {
+    "method_checks.py": "7b113c3ff13010fc8081b198ba96118969f13608af48a96fb8481ce38241786e",
+    "compare_method_checks.py": "d41635190898dfea130ba858823e5e7f851b294d08b5d75756ae01a3207d2a74",
+    "experiment_runner.py": "79a02d59284c42d87986bd7c0e4a465c93cd2d60407a2a6764d3050795bacb86"
+  },
+  "protocol_version": 1,
+  "gate_calibration": "Initial criteria, prior to the comparison.",
+  "seed_for_initial_weights": 2026,
+  "fixture_control_seed": 4309,
+  "real_smoke_input_shape": [
+    1,
+    96,
+    862
+  ],
+  "baseline": "Archived fit() pre-training smoke: first real training window, shape, floating dtype, finite.",
+  "strengthened": "Same smoke gate, then deterministic generated-model method checks.",
+  "scope": "Constructed source variants of one architecture, labeled for the selected requirements. Two attention faults were known from the earlier probe. Controls are numerically checked on two synthetic inputs with equal initial weights. No training, validation or test scoring.",
+  "summary": {
+    "baseline": {
+      "correct_accepted": 0,
+      "false_rejects": 0,
+      "correct_inconclusive": 0,
+      "incorrect_rejected": 0,
+      "false_accepts": 0,
+      "incorrect_inconclusive": 0
+    },
+    "strengthened": {
+      "correct_accepted": 0,
+      "false_rejects": 0,
+      "correct_inconclusive": 0,
+      "incorrect_rejected": 0,
+      "false_accepts": 0,
+      "incorrect_inconclusive": 0
+    }
+  },
+  "cases": [],
+  "additional_equivalent_implementations": {
+    "scope": "Two mathematically equivalent implementations added after the initial 12-case comparison.",
+    "summary": {
+      "baseline": {
+        "correct_accepted": 2,
+        "false_rejects": 0,
+        "correct_inconclusive": 0,
+        "incorrect_rejected": 0,
+        "false_accepts": 0,
+        "incorrect_inconclusive": 0
+      },
+      "strengthened": {
+        "correct_accepted": 0,
+        "false_rejects": 2,
+        "correct_inconclusive": 0,
+        "incorrect_rejected": 0,
+        "false_accepts": 0,
+        "incorrect_inconclusive": 0
+      }
+    },
+    "cases": [
+      {
+        "case": "chunked_queries",
+        "label": "correct",
+        "intervention": "Split Q along the variable axis, attend to every K/V in each chunk, concatenate.",
+        "variant_sha256_lf": "0534abe2cb71eb897e3d667ee07c1df84d91a70448962d3936907f2a2107b7b1",
+        "same_as_archived_on_control_inputs": [
+          true,
+          true
+        ],
+        "baseline": {
+          "status": "passed",
+          "input_shape": [
+            1,
+            96,
+            862
+          ],
+          "output_shape": [
+            1,
+            96,
+            862
+          ]
+        },
+        "strengthened": {
+          "passed": false,
+          "status": "failed",
+          "checks": [
+            {
+              "criterion": "output_contract",
+              "status": "passed",
+              "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+              "input_shape": [
+                3,
+                96,
+                7
+              ],
+              "expected_horizon": 96,
+              "sensor_counts": [
+                7,
+                5
+              ]
+            },
+            {
+              "criterion": "variable_attention",
+              "status": "failed",
+              "detail": "Observed an attention axis or output inconsistent with unmasked scaled attention over variables.",
+              "expected_layers": 2,
+              "matched_projection_inputs": 2,
+              "builtin_mha": [],
+              "sdpa_calls": [
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    3,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": false,
+                  "width_ok": false,
+                  "formula_ok": false,
+                  "batch_heads": 0
+                },
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    3,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": false,
+                  "width_ok": false,
+                  "formula_ok": false,
+                  "batch_heads": 0
+                },
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    1,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": false,
+                  "width_ok": false,
+                  "formula_ok": false,
+                  "batch_heads": 0
+                },
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    3,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": false,
+                  "width_ok": false,
+                  "formula_ok": false,
+                  "batch_heads": 0
+                },
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    3,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": false,
+                  "width_ok": false,
+                  "formula_ok": false,
+                  "batch_heads": 0
+                },
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    1,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": false,
+                  "width_ok": false,
+                  "formula_ok": false,
+                  "batch_heads": 0
+                }
+              ]
+            },
+            {
+              "criterion": "sensor_permutation",
+              "status": "passed",
+              "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+              "max_abs_error": 5.960464477539062e-07
+            },
+            {
+              "criterion": "cross_sensor_effect",
+              "status": "passed",
+              "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+              "max_effect_on_other_sensors": 0.24050626158714294
+            },
+            {
+              "criterion": "history_scale_restore",
+              "status": "passed",
+              "detail": "Change each sensor's offset/scale independently and check its restoration.",
+              "max_abs_error": 1.1086463928222656e-05
+            }
+          ],
+          "model_sha256": "0534abe2cb71eb897e3d667ee07c1df84d91a70448962d3936907f2a2107b7b1",
+          "seed": 7631,
+          "protocol_version": 1,
+          "input": "synthetic",
+          "torch": "2.5.1+cpu"
+        }
+      },
+      {
+        "case": "prescale_query",
+        "label": "correct",
+        "intervention": "Apply the scale to Q before SDPA and request unit scale inside SDPA.",
+        "variant_sha256_lf": "83b9eb70682bbf0395a5aa7ccefca9e6b0331082dec212577a31b441e33c1c6e",
+        "same_as_archived_on_control_inputs": [
+          true,
+          true
+        ],
+        "baseline": {
+          "status": "passed",
+          "input_shape": [
+            1,
+            96,
+            862
+          ],
+          "output_shape": [
+            1,
+            96,
+            862
+          ]
+        },
+        "strengthened": {
+          "passed": false,
+          "status": "failed",
+          "checks": [
+            {
+              "criterion": "output_contract",
+              "status": "passed",
+              "detail": "Checked finite floating forecasts at two supplied sensor counts.",
+              "input_shape": [
+                3,
+                96,
+                7
+              ],
+              "expected_horizon": 96,
+              "sensor_counts": [
+                7,
+                5
+              ]
+            },
+            {
+              "criterion": "variable_attention",
+              "status": "failed",
+              "detail": "Observed an attention axis or output inconsistent with unmasked scaled attention over variables.",
+              "expected_layers": 2,
+              "matched_projection_inputs": 2,
+              "builtin_mha": [],
+              "sdpa_calls": [
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": true,
+                  "width_ok": true,
+                  "formula_ok": false,
+                  "batch_heads": 6
+                },
+                {
+                  "query_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "key_shape": [
+                    3,
+                    2,
+                    7,
+                    16
+                  ],
+                  "tokens_ok": true,
+                  "width_ok": true,
+                  "formula_ok": false,
+                  "batch_heads": 6
+                }
+              ]
+            },
+            {
+              "criterion": "sensor_permutation",
+              "status": "passed",
+              "detail": "Reorder the input sensors and require the same reordering in the forecasts.",
+              "max_abs_error": 4.76837158203125e-07
+            },
+            {
+              "criterion": "cross_sensor_effect",
+              "status": "passed",
+              "detail": "Changing one sensor's temporal pattern must reach at least one other forecast.",
+              "max_effect_on_other_sensors": 0.24050626158714294
+            },
+            {
+              "criterion": "history_scale_restore",
+              "status": "passed",
+              "detail": "Change each sensor's offset/scale independently and check its restoration.",
+              "max_abs_error": 1.0967254638671875e-05
+            }
+          ],
+          "model_sha256": "83b9eb70682bbf0395a5aa7ccefca9e6b0331082dec212577a31b441e33c1c6e",
+          "seed": 7631,
+          "protocol_version": 1,
+          "input": "synthetic",
+          "torch": "2.5.1+cpu"
+        }
+      }
+    ]
+  }
+}

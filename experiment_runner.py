@@ -91,6 +91,27 @@ def predict(model, x, target, device):
 
 
 @torch.inference_mode()
+def preflight(model, train, config, device):
+    model.eval()
+    history = config["seq_len"]
+    x = train[:history].unsqueeze(0)
+    y = train[history:history + config["pred_len"]].unsqueeze(0)
+    forecast = predict(model, x, y, device)
+    if not torch.isfinite(forecast).all():
+        raise ValueError("Generated model returned nonfinite predictions on training preflight.")
+    return {"status": "passed", "input_shape": list(x.shape), "output_shape": list(forecast.shape)}
+
+
+def real_preflight(model, task, config):
+    # Data/configuration errors must propagate separately from a faulty forecast.
+    train = read_series(task, config, "train")
+    try:
+        return preflight(model, train, config, torch.device("cpu"))
+    except (RuntimeError, ValueError, TypeError, IndexError, AttributeError) as exc:
+        return {"status": "failed", "reason": f"{type(exc).__name__}: {exc}"}
+
+
+@torch.inference_mode()
 def evaluate(model, values, config, device, *, predictions=None):
     model.eval()
     sum_squared_error = 0.0
@@ -146,16 +167,10 @@ def fit(args, log):
         raise ValueError("Variable count differs from the configured training subset or between splits.")
     training_windows = len(train) - config["seq_len"] - config["pred_len"] + 1
     # Exercise the generated model on real training data before the first optimizer step.
-    model.eval()
-    smoke_x = train[:config["seq_len"]].unsqueeze(0)
-    smoke_y = train[config["seq_len"]:config["seq_len"] + config["pred_len"]].unsqueeze(0)
-    with torch.no_grad():
-        smoke_prediction = predict(model, smoke_x, smoke_y, device)
-        if not torch.isfinite(smoke_prediction).all():
-            raise ValueError("Generated model returned nonfinite predictions on training preflight.")
+    smoke = preflight(model, train, config, device)
     log("inputs_ready", train_windows=training_windows, variables=variables,
         parameters=sum(p.numel() for p in model.parameters()), preflight_split="train",
-        preflight_input=list(smoke_x.shape), preflight_output=list(smoke_prediction.shape))
+        preflight_input=smoke["input_shape"], preflight_output=smoke["output_shape"])
     best = math.inf
     best_epoch = 0
     checkpoint = args.out / "best.pt"

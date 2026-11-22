@@ -58,7 +58,7 @@ python -X utf8 -m unittest discover -s tests -v
 
 ## 第二步　论文分析、生成和实际训练
 
-从本目录执行下列命令。第一条通过已登录的 Codex CLI 发送任务规格与公开论文选页，保存模型生成的实验规格，再据此生成可独立导入的 PyTorch 模型模块。第二条使用本机 PyTorch 执行训练，第三条从预测和按时间索引保存的真值独立重算 MSE。新实验使用新的运行目录，便于保留每次生成和训练记录。
+从本目录执行下列命令。第一条通过已登录的 Codex CLI 发送任务规格与公开论文选页，生成实验规格，在独立复核通过后生成 PyTorch 模型。第二条在训练前检查论文的关键机制，随后进行训练。第三条从预测和按时间索引保存的真值独立重算 MSE。新实验使用新的运行目录，便于保留每次生成和训练记录。
 
 ```powershell
 python run_experiment.py generate --card examples/itransformer_traffic/task.json --config examples/itransformer_traffic/cpu_first_run.json --run runs/my_traffic96
@@ -69,3 +69,18 @@ python verify_run.py --out runs/my_traffic96/fit --card examples/itransformer_tr
 准备生成环境需要已登录的 `codex` CLI 和 `pypdf`，训练与复核使用项目的 Python 依赖。两类依赖位于同一解释器时可用 `run_experiment.py all` 一次接通生成与运行。复用已生成模型时，可直接用 `experiment_runner.py --card ... --model ... --config ... --out 新目录` 从头训练。模型默认服务的账单金额取决于订阅或提供商，CLI 用量和实际可获得的金额分字段记录。
 
 本次选择 CPU 首轮配置。模型宽度 32、两层两头、前馈宽度 64，使用 Adam 和均方误差训练 10 轮。每轮覆盖所有训练窗口，每个窗口随机抽取 172 个变量。每轮验证均用全部变量，按验证 MSE 选取检查点，冻结后在全部测试窗口及 862 个变量上计算标准化尺度的 MSE。固定种子、全部配置、生成源码、检查点和日志均保存在同一运行目录。
+
+## iTransformer 方法核查与定向修复
+
+新建运行默认使用 `--protocol reviewed`。独立复核者需要对照论文、任务卡、冻结配置，回答关于变量注意力、编码器和预测头、归一化、预测目标、本地实验设置的五个问题。程序核对引文是否出现在指定来源。需要改动时，保留初稿，只修订被指出的条目，再复核整份规格。依据不足、仍有冲突时，记录原因并停在规格阶段。
+
+模型生成后，检查程序先读一个真实训练窗口，再用小张量检验变量之间的缩放注意力、两处残差的归一化顺序、传感器换序、样本独立性、传感器之间的作用和历史窗口归一化的还原。明确失败才会触发定向修复，最多两次，每次都重新跑全部检查；证据不足的候选留给人工复核。候选代码和对应结果在运行目录的 `quality/candidate_*/`，每次模型调用在 `calls/`。历史运行按原来的协议继续。
+
+只检查生成物时，可以执行下面两条命令中的第一条。退出码 0 表示通过，2 表示未放行，系统或依赖出错会报告错误。进一步修复一个已诊断的失败时执行第二条，再重新检查。完整 `train` 或 `all` 会自动走完这一过程。生成环境和 PyTorch 环境分开时，将 `--python` 设为 PyTorch 解释器路径。
+
+```powershell
+python run_experiment.py check --card examples/itransformer_traffic/task.json --run runs/my_traffic96
+python run_experiment.py repair --card examples/itransformer_traffic/task.json --run runs/my_traffic96
+```
+
+用 `--protocol baseline` 新建原流程对照。执行 `python compare_method_checks.py` 可重跑已知样例。独立生成对照、匿名评审规则及训练对象的选择见[实验方案](evidence/quality_study/PROTOCOL.md)。
