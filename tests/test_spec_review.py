@@ -58,6 +58,55 @@ class TestSpecReview(unittest.TestCase):
         self.assertEqual(call.call_count, 2)
         self.assertFalse(list(self.run_dir.rglob("approved.json")))
 
+    def test_resume_after_repair_retries_only_interrupted_review(self):
+        rejected = findings()
+        rejected["variable_attention"]["verdict"] = "revise"
+        edits = {"edits": [{"target": "requirements_with_page_evidence/0", "text": "repaired axis"}]}
+        responses = [json.dumps(rejected), json.dumps(edits), TimeoutError("review backend interrupted")]
+        with patch.object(spec_review, "invoke_model", side_effect=responses) as call:
+            with self.assertRaises(TimeoutError):
+                spec_review.review_spec(**self.args)
+            self.assertEqual(call.call_count, 3)
+        with patch.object(spec_review, "invoke_model", return_value=json.dumps(findings())) as resumed:
+            fixed = spec_review.review_spec(**self.args)
+        resumed.assert_called_once()
+        self.assertEqual(resumed.call_args.kwargs["stage"], "spec_review")
+        self.assertIn("repaired axis", resumed.call_args.kwargs["prompt"])
+        self.assertEqual(fixed["requirements_with_page_evidence"], ["repaired axis"])
+        with patch.object(spec_review, "invoke_model") as third:
+            self.assertEqual(spec_review.review_spec(**self.args), fixed)
+            third.assert_not_called()
+        self.assertEqual(len(list(self.run_dir.rglob("session.json"))), 1)
+
+    def test_restarting_does_not_refresh_invalid_citation_or_repair_budget(self):
+        invalid = findings()
+        invalid["encoder_head"]["evidence"][0]["quote"] = "not in supplied source"
+        with patch.object(spec_review, "invoke_model", side_effect=[json.dumps(invalid), TimeoutError()]):
+            with self.assertRaises(TimeoutError):
+                spec_review.review_spec(**self.args)
+        with patch.object(spec_review, "invoke_model", return_value=json.dumps(invalid)) as retried:
+            with self.assertRaisesRegex(ValueError, "Unverifiable"):
+                spec_review.review_spec(**self.args)
+            retried.assert_called_once()
+        with patch.object(spec_review, "invoke_model") as repeat:
+            with self.assertRaisesRegex(ValueError, "Unverifiable"):
+                spec_review.review_spec(**self.args)
+            with self.assertRaisesRegex(ValueError, "budget changed"):
+                spec_review.review_spec(**self.args, max_repairs=2)
+            repeat.assert_not_called()
+
+    def test_changed_paper_material_uses_new_session_and_preserves_legacy_audit(self):
+        old = self.run_dir / "spec_reviews" / "review-old-random-name" / "approved.json"
+        old.parent.mkdir(parents=True)
+        old.write_text("legacy record", encoding="utf-8")
+        with patch.object(spec_review, "invoke_model", return_value=json.dumps(findings())) as call:
+            spec_review.review_spec(**self.args)
+            changed = {**self.args, "pages": self.args["pages"] + "\nUpdated paper excerpt."}
+            spec_review.review_spec(**changed)
+            self.assertEqual(call.call_count, 2)
+        self.assertEqual(len(list(self.run_dir.rglob("session.json"))), 2)
+        self.assertEqual(old.read_text(encoding="utf-8"), "legacy record")
+
     def test_missing_material_or_exhausted_revisions_blocks_generation(self):
         for reject in ["unresolved", "revise"]:
             with self.subTest(reject=reject):
@@ -65,7 +114,7 @@ class TestSpecReview(unittest.TestCase):
                 report["forecast_target"]["verdict"] = reject
                 with patch.object(spec_review, "invoke_model", return_value=json.dumps(report)) as call:
                     with self.assertRaisesRegex(ValueError, "forecast_target"):
-                        spec_review.review_spec(**self.args, max_repairs=0)
+                        spec_review.review_spec(**{**self.args, "run": self.run_dir / reject}, max_repairs=0)
                 self.assertEqual(call.call_count, 1)
         self.assertFalse(list(self.run_dir.rglob("approved.json")))
 

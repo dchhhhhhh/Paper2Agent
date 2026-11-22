@@ -1,6 +1,8 @@
 """Check a proposed iTransformer specification against the supplied primary material."""
 
+import hashlib
 import json
+import os
 import re
 import tempfile
 import unicodedata
@@ -34,7 +36,26 @@ def _array(item):
 
 
 def _save(path, value):
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # A stopped process may leave a temporary file but can never publish partial JSON.
+    fd, filename = tempfile.mkstemp(dir=path.parent)
+    temp = Path(filename)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def _load_or_record(path, produce):
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    value = produce()
+    _save(path, value)
+    return value
 
 
 def _text(value):
@@ -145,7 +166,13 @@ def review_spec(*, run: Path, spec: dict, pages: str, experiment: dict, config: 
     _spec_targets(spec)
     base = Path(run) / "spec_reviews"
     base.mkdir(parents=True, exist_ok=True)
-    audit = Path(tempfile.mkdtemp(prefix="review-", dir=base))
+    inputs = json.dumps([spec, sources], sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    fingerprint = hashlib.sha256(inputs.encode("utf-8")).hexdigest()
+    audit = base / ("review-v1-" + fingerprint)
+    audit.mkdir(exist_ok=True)
+    session = {"input_sha256": fingerprint, "max_repairs": max_repairs}
+    if _load_or_record(audit / "session.json", lambda: session) != session:
+        raise ValueError(f"Review session inputs or repair budget changed: {audit}")
     schema = _object({
         "verdict": {"type": "string", "enum": ["pass", "revise", "unresolved"]},
         "targets": _array(_TEXT), "explanation": _TEXT,
@@ -154,7 +181,8 @@ def review_spec(*, run: Path, spec: dict, pages: str, experiment: dict, config: 
     evidence_text = "\n".join(f"[{key}]\n{value}" for key, value in sources.items())
     questions = "\n".join(f"{key}: {question}" for key, (_, question) in _CRITERIA.items())
     for attempt in range(max_repairs + 1):
-        _save(audit / f"spec-{attempt}.json", spec)
+        if _load_or_record(audit / f"spec-{attempt}.json", lambda: spec) != spec:
+            raise ValueError(f"Saved specification {attempt} disagrees with the recorded edits in {audit}")
         targets = _spec_targets(spec)
         prompt = (
             "Independently review the proposed iTransformer reproduction specification. The numbered paper excerpts, "
@@ -177,10 +205,9 @@ def review_spec(*, run: Path, spec: dict, pages: str, experiment: dict, config: 
         # A malformed citation calls for correcting the audit, not changing the spec.
         feedback = ""
         for review_try in range(2):
-            answer = invoke_model(stage="spec_review", prompt=prompt + feedback, log_dir=Path(run) / "calls",
-                                  schema=_object({key: schema for key in _CRITERIA}))
-            findings = json.loads(answer)
-            _save(audit / f"findings-{attempt}-{review_try}.json", findings)
+            findings = _load_or_record(audit / f"findings-{attempt}-{review_try}.json", lambda: json.loads(
+                invoke_model(stage="spec_review", prompt=prompt + feedback, log_dir=Path(run) / "calls",
+                             schema=_object({key: schema for key in _CRITERIA}))))
             try:
                 _check_findings(findings, sources, targets)
                 break
@@ -210,8 +237,7 @@ def review_spec(*, run: Path, spec: dict, pages: str, experiment: dict, config: 
             f"Corrections requested:\n{json.dumps(issues, ensure_ascii=False)}\nSources:\n{evidence_text}"
         )
         edit = _object({"target": {"type": "string", "enum": sorted(flagged)}, "text": _TEXT})
-        result = invoke_model(stage="spec_repair", prompt=repair_prompt, log_dir=Path(run) / "calls",
-                              schema=_object({"edits": _array(edit)}))
-        edits = json.loads(result)["edits"]
-        _save(audit / f"edits-{attempt}.json", edits)
+        edits = _load_or_record(audit / f"edits-{attempt}.json", lambda: json.loads(
+            invoke_model(stage="spec_repair", prompt=repair_prompt, log_dir=Path(run) / "calls",
+                         schema=_object({"edits": _array(edit)})))["edits"])
         spec = _apply_edits(spec, edits, flagged)
